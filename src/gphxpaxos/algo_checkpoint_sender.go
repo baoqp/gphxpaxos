@@ -6,6 +6,8 @@ import (
 	"os"
 	"gphxpaxos/util"
 	"math"
+	"github.com/pkg/errors"
+	"fmt"
 )
 
 const tmpBufferLen = 102400
@@ -266,6 +268,7 @@ func (checkpointSender *CheckpointSender) Ack(sendNodeId uint64, uuid uint64, se
 	checkpointSender.absLastAckTime = util.NowTimeMs()
 }
 
+
 func (checkpointSender *CheckpointSender) CheckAck(sendSequence uint64) error {
 	for sendSequence > checkpointSender.ackSequence+100 {
 		now := util.NowTimeMs()
@@ -275,11 +278,11 @@ func (checkpointSender *CheckpointSender) CheckAck(sendSequence uint64) error {
 		}
 
 		if checkpointSender.isEnd {
-
+			return errors.New("sender is end")
 		}
 
 		if passTime > 200 {
-
+			return fmt.Errorf("ack timeout, last acktime %d", checkpointSender.absLastAckTime)
 		}
 
 		time.Sleep(20 * time.Millisecond)
