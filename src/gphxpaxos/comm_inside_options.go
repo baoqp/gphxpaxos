@@ -109,7 +109,7 @@ func GetAskforLearnInterval() int {
 	}
 }
 
-func GetLearnerReceiver_Ack_Lead() int {
+func GetLearnerReceiverAckLead() int {
 	if GetInsideOptions().isLargeBufferMode {
 		return 2
 	}

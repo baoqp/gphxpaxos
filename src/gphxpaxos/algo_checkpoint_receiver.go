@@ -55,7 +55,9 @@ func (checkpointReceiver *CheckpointReceiver) NewReceiver(senderNodeId uint64, u
 }
 
 func (checkpointReceiver *CheckpointReceiver) ClearCheckpointTmp() error {
-	logStoragePath, _ := checkpointReceiver.logStorage.GetLogStorageDirPath(checkpointReceiver.config.GetMyGroupId())
+	logStoragePath, _ := checkpointReceiver.logStorage.GetLogStorageDirPath(
+		checkpointReceiver.config.GetMyGroupId())
+
 	files, err := ioutil.ReadDir(logStoragePath)
 
 	for _, file := range files {
@@ -87,10 +89,13 @@ func (checkpointReceiver *CheckpointReceiver) IsReceiverFinish(senderNodeId uint
 }
 
 func (checkpointReceiver *CheckpointReceiver) GetTmpDirPath(smid int32) string {
-	logStoragePath, _ := checkpointReceiver.logStorage.GetLogStorageDirPath(checkpointReceiver.config.GetMyGroupId())
+	logStoragePath, _ := checkpointReceiver.logStorage.GetLogStorageDirPath(
+		checkpointReceiver.config.GetMyGroupId())
+
 	return fmt.Sprintf("%s/cp_tmp_%d", logStoragePath, smid)
 }
 
+// 初始化路径
 func (checkpointReceiver *CheckpointReceiver) InitFilePath(filePath string) (string, error) {
 	newFilePath := "/" + filePath + "/"
 	dirList := make([]string, 0)
@@ -140,7 +145,10 @@ func (checkpointReceiver *CheckpointReceiver) CreateDir(dirPath string) error {
 }
 
 func (checkpointReceiver *CheckpointReceiver) ReceiveCheckpoint(ckMsg *CheckpointMsg) error {
-	if ckMsg.GetNodeID() != checkpointReceiver.senderNodeId || ckMsg.GetUUID() != checkpointReceiver.uuid {
+
+	if ckMsg.GetNodeID() != checkpointReceiver.senderNodeId ||
+		ckMsg.GetUUID() != checkpointReceiver.uuid {
+
 		return ErrInvalidMsg
 	}
 

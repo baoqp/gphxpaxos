@@ -1,6 +1,10 @@
 package gphxpaxos
 
-import "gphxpaxos/util"
+import (
+	"gphxpaxos/util"
+	log "github.com/sirupsen/logrus"
+	"github.com/pkg/errors"
+)
 
 type CheckpointManager struct {
 	config     *Config
@@ -9,8 +13,8 @@ type CheckpointManager struct {
 	cleaner    *Cleaner
 	replayer   *Replayer
 
-	minChosenInstanceId    uint64  // TODO ???
-	maxChosenInstanceId    uint64  // TODO ???
+	minChosenInstanceId    uint64
+	maxChosenInstanceId    uint64
 	inAskforCheckpointMode bool
 	useCheckpointReplayer  bool
 
@@ -75,17 +79,19 @@ func (checkpointManager *CheckpointManager) GetCleaner() *Cleaner {
 }
 
 func (checkpointManager *CheckpointManager) PrepareForAskforCheckpoint(sendNodeId uint64) error {
+
 	checkpointManager.needAskSet[sendNodeId] = true
+
 	if checkpointManager.lastAskforCheckpointTime == 0 {
 		checkpointManager.lastAskforCheckpointTime = util.NowTimeMs()
 	}
 
 	now := util.NowTimeMs()
-	if now >= checkpointManager.lastAskforCheckpointTime+60000 {
-
+	if now >= checkpointManager.lastAskforCheckpointTime + 60000 { // TODO ???
+		log.Info("no majority reply, just ask for checkpoint")
 	} else {
 		if len(checkpointManager.needAskSet) < checkpointManager.config.GetMajorityCount() {
-
+			return errors.New("Need more other tell us need to askforcheckpoint");
 		}
 	}
 
@@ -99,7 +105,6 @@ func (checkpointManager *CheckpointManager) InAskforcheckpointMode() bool {
 	return checkpointManager.inAskforCheckpointMode
 }
 
-
 func (checkpointManager *CheckpointManager) GetMinChosenInstanceID() uint64 {
 	return checkpointManager.minChosenInstanceId
 }
@@ -111,7 +116,6 @@ func (checkpointManager *CheckpointManager) GetMaxChosenInstanceID() uint64 {
 func (checkpointManager *CheckpointManager) SetMaxChosenInstanceId(instanceId uint64) {
 	checkpointManager.maxChosenInstanceId = instanceId
 }
-
 
 func (checkpointManager *CheckpointManager) SetMinChosenInstanceId(instanceId uint64) error {
 

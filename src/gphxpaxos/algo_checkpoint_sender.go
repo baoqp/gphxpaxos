@@ -10,7 +10,12 @@ import (
 	"fmt"
 )
 
-const tmpBufferLen = 102400
+const (
+	tmpBufferLen = 102400
+	Checkpoint_ACK_TIMEOUT = 120000
+	Checkpoint_ACK_LEAD    = 10
+)
+
 
 type CheckpointSender struct {
 	sendNodeId        uint64
@@ -41,7 +46,6 @@ func NewCheckpointSender(sendNodeId uint64, config *Config, learner *Learner,
 		tmpBuffer:  make([]byte, tmpBufferLen),
 	}
 
-
 	return cksender
 }
 
@@ -65,7 +69,6 @@ func (checkpointSender *CheckpointSender) End() {
 
 func (checkpointSender *CheckpointSender) main() {
 	checkpointSender.absLastAckTime = util.NowTimeMs()
-
 	needContinue := false
 	for !checkpointSender.ckMnger.GetReplayer().IsPaused() {
 		if checkpointSender.isEnd {
@@ -121,12 +124,14 @@ func (checkpointSender *CheckpointSender) UnlockCheckpoint() {
 	for _, sm := range smList {
 		sm.UnLockCheckpointState()
 	}
+
 }
 
 func (checkpointSender *CheckpointSender) SendCheckpoint() error {
 	learner := checkpointSender.learner
 	err := learner.SendCheckpointBegin(checkpointSender.sendNodeId, checkpointSender.uuid, checkpointSender.sequence,
 		checkpointSender.factory.GetCheckpointInstanceId(checkpointSender.config.GetMyGroupId()))
+
 	if err != nil {
 		log.Errorf("SendCheckpoint fail: %v \r\n", err)
 		return err
@@ -180,6 +185,7 @@ func (checkpointSender *CheckpointSender) SendCheckpointForSM(statemachine State
 }
 
 func (checkpointSender *CheckpointSender) SendFile(statemachine StateMachine, dir string, file string) error {
+
 	path := dir + file
 
 	_, exist := checkpointSender.alreadySendedFile[path]
@@ -238,8 +244,9 @@ func (checkpointSender *CheckpointSender) SendBuffer(smid int32, ckInstanceId ui
 			return err
 		}
 
-		err = checkpointSender.learner.SendCheckpoint(checkpointSender.sendNodeId, checkpointSender.uuid, checkpointSender.sequence,
-			ckInstanceId, ckSum, file, smid, offser, buffer)
+		err = checkpointSender.learner.SendCheckpoint(checkpointSender.sendNodeId, checkpointSender.uuid,
+			checkpointSender.sequence, ckInstanceId, ckSum, file, smid, offser, buffer)
+
 		if err != nil {
 			util.SleepMs(30000)
 		} else {
@@ -252,15 +259,23 @@ func (checkpointSender *CheckpointSender) SendBuffer(smid int32, ckInstanceId ui
 }
 
 func (checkpointSender *CheckpointSender) Ack(sendNodeId uint64, uuid uint64, sequence uint64) {
-	if sendNodeId != checkpointSender.sendNodeId {
+
+	if checkpointSender.sendNodeId != sendNodeId {
+		log.Errorf("send nodeid not same, ack.sendnodeid %d self.sendnodeid %d",
+			sendNodeId, checkpointSender.sendNodeId)
 		return
 	}
 
 	if checkpointSender.uuid != uuid {
+		log.Errorf("uuid not same, ack.uuid %d self.uuid %d", uuid, checkpointSender.uuid)
 		return
 	}
 
 	if checkpointSender.ackSequence != sequence {
+
+		log.Errorf("ack_sequence not same, ack.ack_sequence %d self.ack_sequence %d",
+			sequence, checkpointSender.ackSequence)
+
 		return
 	}
 
@@ -269,8 +284,10 @@ func (checkpointSender *CheckpointSender) Ack(sendNodeId uint64, uuid uint64, se
 }
 
 
+
 func (checkpointSender *CheckpointSender) CheckAck(sendSequence uint64) error {
-	for sendSequence > checkpointSender.ackSequence+100 {
+
+	for sendSequence > checkpointSender.ackSequence + Checkpoint_ACK_LEAD {
 		now := util.NowTimeMs()
 		var passTime uint64
 		if now > checkpointSender.absLastAckTime {
@@ -281,7 +298,7 @@ func (checkpointSender *CheckpointSender) CheckAck(sendSequence uint64) error {
 			return errors.New("sender is end")
 		}
 
-		if passTime > 200 {
+		if passTime > Checkpoint_ACK_TIMEOUT {
 			return fmt.Errorf("ack timeout, last acktime %d", checkpointSender.absLastAckTime)
 		}
 

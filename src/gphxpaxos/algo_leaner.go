@@ -56,7 +56,7 @@ func (learnerState *LearnerState) LearnValue(instanceId uint64, learnedBallot Ba
 
 	// TODO
 	options := WriteOptions{
-		Sync: false,
+		Sync: true,
 	}
 
 	err := learnerState.paxosLog.WriteState(&options,
@@ -211,7 +211,7 @@ func (learner *Learner) askforLearn() {
 
 	base.broadcastMessage(msg, BroadcastMessage_Type_RunSelf_None, Default_SendType)
 
-	base.BroadcastMessageToTempNode(msg, Default_SendType)  // TODO 目前不支持UDP
+	base.BroadcastMessageToTempNode(msg, Default_SendType) // TODO 目前不支持UDP
 }
 
 func (learner *Learner) OnAskforLearn(msg *PaxosMsg) {
@@ -261,7 +261,7 @@ func (learner *Learner) sendNowInstanceID(instanceId uint64, sendNodeId uint64) 
 	}
 
 	//instanceid too close not need to send vsm/master
-	if learner.GetInstanceId() - instanceId > 50 {
+	if learner.GetInstanceId()-instanceId > 50 {
 
 		systemVarBuffer, err := learner.config.GetSystemVSM().GetCheckpointBuffer()
 		if err == nil {
@@ -278,7 +278,6 @@ func (learner *Learner) sendNowInstanceID(instanceId uint64, sendNodeId uint64) 
 
 	learner.sendPaxosMessage(sendNodeId, msg, Default_SendType)
 }
-
 
 func (learner *Learner) OnSendNowInstanceId(msg *PaxosMsg) {
 	instance := learner.instance
@@ -324,7 +323,7 @@ func (learner *Learner) OnSendNowInstanceId(msg *PaxosMsg) {
 			learner.instanceId, msg.GetMinChosenInstanceID(), msg.GetNodeID())
 
 		learner.AskforCheckpoint(msg.GetNodeID())
-	} else if !learner.isImLearning {
+	} else if !learner.isImLearning { // 不在学习状态
 		learner.confirmAskForLearn(msg.GetNodeID()) // 确认开始向msg.GetNodeID()代表的节点学习
 	}
 }
@@ -398,6 +397,7 @@ func (learner *Learner) OnSendLearnValue(msg *PaxosMsg) {
 	}
 
 	if msg.GetFlag() == PaxosMsgFlagType_SendLearnValue_NeedAck {
+		// TODO 收到数据之后要把定时器后移，防止频繁触发超时
 		learner.ResetAskforLearnNoop(GetAskforLearnInterval())
 		learner.SendLearnValueAck(msg.GetNodeID())
 	}
@@ -406,10 +406,11 @@ func (learner *Learner) OnSendLearnValue(msg *PaxosMsg) {
 // 发送确认信息
 // 并不是每学习一个value, 就发送ack，而是学习了ack_lead个value之后才发送ack,这样可以减少网络请求
 func (learner *Learner) SendLearnValueAck(sendNodeId uint64) {
-	log.Infof("START LastAck.Instanceid %d Now.Instanceid %d",
+
+	log.Infof("SendLearnValueAck START LastAck.Instanceid %d Now.Instanceid %d",
 		learner.lastAckInstanceId, learner.GetInstanceId())
 
-	if learner.GetInstanceId() < learner.lastAckInstanceId+uint64(GetLearnerReceiver_Ack_Lead()) {
+	if learner.GetInstanceId() < learner.lastAckInstanceId+uint64(GetLearnerReceiverAckLead()) {
 		log.Info("no need ack")
 		return
 	}
@@ -439,7 +440,7 @@ func (learner *Learner) getSeenLatestInstanceId() uint64 {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-func (learner *Learner) TransmitToFollower() {
+func (learner *Learner) TransmitToFollower() { // TODO
 	if learner.config.GetMyFollowerCount() == 0 {
 		return
 	}
@@ -511,7 +512,7 @@ func (learner *Learner) OnProposerSendSuccess(msg *PaxosMsg) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// TODO
+
 func (learner *Learner) AskforCheckpoint(sendNodeId uint64) error {
 	err := learner.ckMnger.PrepareForAskforCheckpoint(sendNodeId)
 	if err != nil {
@@ -609,7 +610,7 @@ func (learner *Learner) OnSendCheckpoint(ckMsg *CheckpointMsg) {
 		learner.SendCheckpointAck(ckMsg.GetNodeID(), ckMsg.GetUUID(), ckMsg.GetSequence(), CheckpointSendFileAckFlag_Fail)
 	} else {
 		learner.SendCheckpointAck(ckMsg.GetNodeID(), ckMsg.GetUUID(), ckMsg.GetSequence(), CheckpointSendFileAckFlag_OK)
-		learner.ResetAskforLearnNoop(10000)
+		learner.ResetAskforLearnNoop(120000)
 	}
 }
 
@@ -666,13 +667,15 @@ func (learner *Learner) OnSendCheckpointEnd(ckMsg *CheckpointMsg) error {
 	return nil
 }
 
-func (learner *Learner) SendCheckpointAck(sendNodeId uint64, uuid uint64, sequence uint64, flag int) error {
+func (learner *Learner) SendCheckpointAck(sendNodeId uint64, uuid uint64, sequence uint64,
+	flag int) error {
+
 	ckMsg := &CheckpointMsg{
 		MsgType:  proto.Int32(CheckpointMsgType_SendFile_Ack),
 		NodeID:   proto.Uint64(learner.config.GetMyNodeId()),
 		UUID:     proto.Uint64(uuid),
 		Sequence: proto.Uint64(sequence),
-		Flag:     proto.Int32(CheckpointSendFileFlag_ING),
+		Flag:     proto.Int32(int32(flag)),
 	}
 
 	return learner.sendCheckpointMessage(sendNodeId, ckMsg, Default_SendType)

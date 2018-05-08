@@ -444,7 +444,6 @@ func (instance *Instance) receiveMsgForLearner(msg *PaxosMsg) error {
 
 			commitCtx.setResult(PaxosTryCommitRet_ExecuteFail, learner.GetInstanceId(), learner.GetLearnValue())
 			instance.proposer.CancelSkipPrepare()
-
 			return err
 		}
 
@@ -487,7 +486,7 @@ func (instance *Instance) receiveMsgForProposer(msg *PaxosMsg) error {
 
 // handle msg type which for acceptor
 func (instance *Instance) receiveMsgForAcceptor(msg *PaxosMsg, isRetry bool) error {
-	if instance.config.IsIMFollower() { // TODO follower ???
+	if instance.config.IsIMFollower() {
 		log.Errorf("[%s]follower skip %d msg", instance.name, msg.GetMsgType())
 		return nil
 	}
@@ -498,8 +497,10 @@ func (instance *Instance) receiveMsgForAcceptor(msg *PaxosMsg, isRetry bool) err
 	log.Infof("[%s]msg instance %d, acceptor instance %d", instance.name, msgInstanceId, acceptorInstanceId)
 	// msgInstanceId == acceptorInstanceId + 1  means acceptor instance has been approved
 	// so just learn it
+	// TODO
 	if msgInstanceId == acceptorInstanceId + 1 {
 		newMsg := &PaxosMsg{}
+		*newMsg = *msg // 拷贝
 		util.CopyStruct(newMsg, *msg)
 		newMsg.InstanceID = proto.Uint64(acceptorInstanceId)
 		newMsg.MsgType = proto.Int(MsgType_PaxosLearner_ProposerSendSuccess)

@@ -5,6 +5,7 @@ import (
 	"sync"
 	log "github.com/sirupsen/logrus"
 	"gphxpaxos/util"
+
 )
 
 type LearnerSender struct {
@@ -20,6 +21,7 @@ type LearnerSender struct {
 	absLastSendTime uint64
 	isEnd           bool
 	isStart         bool
+	waitChan        chan struct{}
 	mutex           sync.Mutex
 }
 
@@ -93,7 +95,7 @@ func (learnerSender *LearnerSender) CheckAck(sendInstanceId uint64) bool {
 		return false
 	}
 
-	for sendInstanceId > learnerSender.ackInstanceID + uint64(GetLearnerSenderAckLead()) {
+	for sendInstanceId > learnerSender.ackInstanceID+uint64(GetLearnerSenderAckLead()) {
 		nowTime := util.NowTimeMs()
 		var passTime uint64 = 0
 		if nowTime > learnerSender.absLastAckTime {
@@ -138,9 +140,9 @@ func (learnerSender *LearnerSender) Confirm(beginInstanceId uint64, sendToNodeId
 	if learnerSender.IsImSending() && !learnerSender.isConfirmed {
 		if learnerSender.beginInstanceID == beginInstanceId &&
 			learnerSender.sendToNodeID == sendToNodeId {
-
 			confirmRet = true
 			learnerSender.isConfirmed = true
+
 		}
 	}
 
@@ -163,6 +165,7 @@ func (learnerSender *LearnerSender) Ack(ackInstanceId uint64, fromNodeId uint64)
 
 }
 
+// TODO 感觉这种实现方法不好 ??? 考虑用chan来进行通知
 func (learnerSender *LearnerSender) WaitToSend() {
 	learnerSender.mutex.Lock()
 	defer learnerSender.mutex.Unlock()
