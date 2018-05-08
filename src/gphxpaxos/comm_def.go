@@ -16,8 +16,6 @@ const (
 )
 
 const (
-	MAX_QUEUE_MEM_SIZE = 209715200
-
 	// enum MsgCmd
 	MsgCmd_PaxosMsg      = 1
 	MsgCmd_CheckpointMsg = 2

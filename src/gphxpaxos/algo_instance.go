@@ -88,6 +88,8 @@ func (instance *Instance) Init() error {
 	}
 
 	instance.ckMnger.Init()
+
+	// 从状态机获取checkpointInstanceID
 	cpInstanceId := instance.ckMnger.GetCheckpointInstanceID() + 1
 
 	log.Infof("acceptor OK, log.instanceid %d,  instanceid %d",
@@ -95,7 +97,7 @@ func (instance *Instance) Init() error {
 
 	nowInstanceId := cpInstanceId
 
-	// TODO nowInstanceId cpInstanceId maxInstanceId???
+	// 重放日志
 	if nowInstanceId < instance.acceptor.GetInstanceId() {
 		err := instance.PlayLog(nowInstanceId, instance.acceptor.GetInstanceId())
 		if err != nil {
@@ -113,15 +115,17 @@ func (instance *Instance) Init() error {
 
 	instance.learner.setInstanceId(nowInstanceId)
 	instance.proposer.setInstanceId(nowInstanceId)
-	instance.proposer.setStartProposalID(instance.acceptor.GetAcceptorState().GetPromiseNum().proposalId + 1)
+	instance.proposer.setStartProposalID(
+		instance.acceptor.GetAcceptorState().GetPromiseNum().proposalId + 1)
 
 	instance.ckMnger.SetMaxChosenInstanceId(nowInstanceId)
+
 	err = instance.InitLastCheckSum()
 	if err != nil {
 		return err
 	}
 
-	// 重置learner的定时器，定时器到时就会广播AskForLearn消息，以保证本节点能保持较新的状态
+	// 重置learner的定时器，定时器到时会广播AskForLearn消息，以保证本节点能保持较新的状态
 	instance.learner.ResetAskforLearnNoop(GetAskforLearnInterval()) //GetAskforLearnInterval
 
 	log.Info("init instance ok")
@@ -130,7 +134,6 @@ func (instance *Instance) Init() error {
 
 // instance main loop
 func (instance *Instance) main() {
-
 	end := false
 	for !end {
 		timer := time.NewTimer(100 * time.Millisecond)
@@ -220,8 +223,11 @@ func (instance *Instance) InitLastCheckSum() error {
 }
 
 func (instance *Instance) PlayLog(beginInstanceId uint64, endInstanceId uint64) error {
+
 	if beginInstanceId < instance.ckMnger.GetMinChosenInstanceID() {
-		log.Errorf("now instanceid %d small than chosen instanceid %d", beginInstanceId, instance.ckMnger.GetMinChosenInstanceID())
+		log.Errorf("now instanceid %d small than chosen instanceid %d",
+			beginInstanceId, instance.ckMnger.GetMinChosenInstanceID())
+
 		return ErrInvalidInstanceId
 	}
 
@@ -417,7 +423,7 @@ func (instance *Instance) receiveMsgForLearner(msg *PaxosMsg) error {
 		learner.OnConfirmAskForLearn(msg)
 		break
 	case MsgType_PaxosLearner_SendLearnValue_Ack:
-		learner.OnSendLearnValue_Ack(msg)
+		learner.OnSendLearnValueAck(msg)
 		break
 	case MsgType_PaxosLearner_AskforCheckpoint:
 		learner.OnAskforCheckpoint(msg)
@@ -492,7 +498,7 @@ func (instance *Instance) receiveMsgForAcceptor(msg *PaxosMsg, isRetry bool) err
 	log.Infof("[%s]msg instance %d, acceptor instance %d", instance.name, msgInstanceId, acceptorInstanceId)
 	// msgInstanceId == acceptorInstanceId + 1  means acceptor instance has been approved
 	// so just learn it
-	if msgInstanceId == acceptorInstanceId+1 {
+	if msgInstanceId == acceptorInstanceId + 1 {
 		newMsg := &PaxosMsg{}
 		util.CopyStruct(newMsg, *msg)
 		newMsg.InstanceID = proto.Uint64(acceptorInstanceId)
@@ -537,7 +543,7 @@ func (instance *Instance) receiveMsgForAcceptor(msg *PaxosMsg, isRetry bool) err
 	}
 
 	// 如果当前节点落后的消息数小于RETRY_QUEUE_MAX_LEN，在加入重试的队列 TODO ???
-	if msgInstanceId < acceptorInstanceId+RETRY_QUEUE_MAX_LEN {
+	if msgInstanceId < acceptorInstanceId + RETRY_QUEUE_MAX_LEN {
 		//need retry msg precondition
 		//  1. prepare or accept msg
 		//  2. msg.instanceid > nowinstanceid.

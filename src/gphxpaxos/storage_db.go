@@ -285,13 +285,13 @@ func (database *Database) GetMaxInstanceId() (uint64, error) {
 	return INVALID_INSTANCEID, ErrKeyNotFound
 }
 
-func (database *Database) GetMaxinstanceIdFileId() (string, uint64, error) {
-	maxinstanceId, err := database.GetMaxInstanceId()
+func (database *Database) GetMaxInstanceIdFileId() (string, uint64, error) {
+	maxInstanceId, err := database.GetMaxInstanceId()
 	if err != nil {
 		return "", 0, nil
 	}
 
-	key := database.genKey(maxinstanceId)
+	key := database.genKey(maxInstanceId)
 	value, err := database.leveldb.Get([]byte(key), &opt.ReadOptions{})
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -302,7 +302,7 @@ func (database *Database) GetMaxinstanceIdFileId() (string, uint64, error) {
 		return "", 0, ErrGetFail
 	}
 
-	return string(value), maxinstanceId, nil
+	return string(value), maxInstanceId, nil
 }
 
 // 替换一条记录，LevelDB中的替换使用追加就行，LevelDB默认会读取相同key的最新的值

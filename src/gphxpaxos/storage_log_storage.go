@@ -20,7 +20,7 @@ type WriteOptions struct {
 
   LevelDB中数据格式：
     key - instance
-    value format - fileid(int32)+file offset(uint64)+cksum of file value(uint32)
+    value format - fileid(int32) + file offset(uint64) + cksum of file value(uint32)
 
   元文件保存了当前正在使用的vfile的fileid
   meta file format(data path/vpath/meta):
@@ -34,7 +34,9 @@ type WriteOptions struct {
       instance id(uint64)
       acceptor state data(data len - sizeof(uint64))
  */
+
 type LogStorage interface {
+
 	GetLogStorageDirPath(groupIdx int32) (string, error)
 
 	Get(groupIdx int32, instanceId uint64) ([]byte, error)

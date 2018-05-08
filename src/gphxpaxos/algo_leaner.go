@@ -21,9 +21,7 @@ func NewLearnerState(instance *Instance) *LearnerState {
 		config:   instance.config,
 		paxosLog: instance.paxosLog,
 	}
-
 	state.Init()
-
 	return state
 }
 
@@ -61,7 +59,9 @@ func (learnerState *LearnerState) LearnValue(instanceId uint64, learnedBallot Ba
 		Sync: false,
 	}
 
-	err := learnerState.paxosLog.WriteState(&options, learnerState.config.GetMyGroupId(), instanceId, &state)
+	err := learnerState.paxosLog.WriteState(&options,
+		learnerState.config.GetMyGroupId(), instanceId, &state)
+
 	if err != nil {
 		log.Errorf("storage writestate fail, instanceid %d valuelen %d err %v",
 			instanceId, len(value), err)
@@ -88,6 +88,7 @@ func (learnerState *LearnerState) Init() {
 }
 
 //-------------------------------------------------Learner-----------------------------------------//
+// learner同时封装了学习者和被学习者的功能
 type Learner struct {
 	*Base
 	instance                        *Instance
@@ -180,7 +181,8 @@ func (learner *Learner) ResetAskforLearnNoop(timeout int) {
 		learner.timerThread.DelTimer(learner.askforlearnNoopTimerID)
 	}
 
-	learner.askforlearnNoopTimerID = learner.timerThread.AddTimer(uint32(timeout), Timer_Learner_Askforlearn_noop, learner.instance)
+	learner.askforlearnNoopTimerID = learner.timerThread.AddTimer(uint32(timeout),
+		Timer_Learner_Askforlearn_noop, learner.instance)
 }
 
 func (learner *Learner) AskforLearnNoop() {
@@ -209,7 +211,7 @@ func (learner *Learner) askforLearn() {
 
 	base.broadcastMessage(msg, BroadcastMessage_Type_RunSelf_None, Default_SendType)
 
-	base.BroadcastMessageToTempNode(msg, Message_SendType_UDP) // TODO ???
+	base.BroadcastMessageToTempNode(msg, Default_SendType)  // TODO 目前不支持UDP
 }
 
 func (learner *Learner) OnAskforLearn(msg *PaxosMsg) {
@@ -258,8 +260,8 @@ func (learner *Learner) sendNowInstanceID(instanceId uint64, sendNodeId uint64) 
 		MinChosenInstanceID: proto.Uint64(learner.ckMnger.GetMinChosenInstanceID()),
 	}
 
-	//instanceid too close not need to send vsm/master   TODO ???
-	if learner.GetInstanceId()-instanceId > 50 {
+	//instanceid too close not need to send vsm/master
+	if learner.GetInstanceId() - instanceId > 50 {
 
 		systemVarBuffer, err := learner.config.GetSystemVSM().GetCheckpointBuffer()
 		if err == nil {
@@ -277,7 +279,7 @@ func (learner *Learner) sendNowInstanceID(instanceId uint64, sendNodeId uint64) 
 	learner.sendPaxosMessage(sendNodeId, msg, Default_SendType)
 }
 
-// TODO ??? 逻辑不是很清楚
+
 func (learner *Learner) OnSendNowInstanceId(msg *PaxosMsg) {
 	instance := learner.instance
 	instanceId := learner.instanceId
@@ -303,23 +305,27 @@ func (learner *Learner) OnSendNowInstanceId(msg *PaxosMsg) {
 		}
 	}
 
+	// msg.GetInstanceID()是leaner在OnSendNowInstanceId之前发送给被学习者的本身的instanceId，不相等，
+	// 说明learner本身的状态有更新了
 	if msg.GetInstanceID() != instanceId {
 		log.Errorf("[%s]lag msg instanceid %d, skip", instance.String(), msg.GetInstanceID())
 		return
 	}
 
+	// 被学习者的instanceId落后于自身
 	if msg.GetNowInstanceID() <= instanceId {
 		log.Errorf("[%s]lag msg instanceid %d, skip", instance.String(), msg.GetNowInstanceID())
 		return
 	}
 
+	// 需要发送快照
 	if msg.GetMinChosenInstanceID() > instanceId {
-		log.Infof("my instanceid %d small than other's minchoseninstanceid %d, other nodeid %d",
+		log.Infof("my instanceid %d small than other's minChosenInstanceId %d, other nodeid %d",
 			learner.instanceId, msg.GetMinChosenInstanceID(), msg.GetNodeID())
 
-		learner.OnAskforCheckpoint(msg)
+		learner.AskforCheckpoint(msg.GetNodeID())
 	} else if !learner.isImLearning {
-		learner.confirmAskForLearn(msg.GetNodeID())
+		learner.confirmAskForLearn(msg.GetNodeID()) // 确认开始向msg.GetNodeID()代表的节点学习
 	}
 }
 
@@ -366,7 +372,7 @@ func (learner *Learner) SendLearnValue(sendNodeId uint64, learnInstanceId uint64
 
 // 接收到被学习者所发来的消息
 func (learner *Learner) OnSendLearnValue(msg *PaxosMsg) {
-	log.Infof("START Msg.InstanceID %d Now.InstanceID %d Msg.ballot_proposalid %d " +
+	log.Infof("START Msg.InstanceID %d Now.InstanceID %d Msg.ballot_proposalid %d "+
 		"Msg.ballot_nodeid %d Msg.ValueSize %d",
 		msg.GetInstanceID(), learner.GetInstanceId(), msg.GetProposalID(),
 		msg.GetNodeID(), len(msg.Value))
@@ -380,7 +386,9 @@ func (learner *Learner) OnSendLearnValue(msg *PaxosMsg) {
 		log.Debug("[Lag Msg] no need to learn")
 	} else {
 		ballot := NewBallotNumber(msg.GetProposalID(), msg.GetProposalNodeID())
-		err := learner.state.LearnValue(msg.GetInstanceID(), *ballot, msg.GetValue(), learner.GetLastChecksum())
+		err := learner.state.LearnValue(msg.GetInstanceID(), *ballot,
+			msg.GetValue(), learner.GetLastChecksum())
+
 		if err != nil {
 			log.Errorf("LearnState.LearnValue fail:%v", err)
 			return
@@ -391,15 +399,15 @@ func (learner *Learner) OnSendLearnValue(msg *PaxosMsg) {
 
 	if msg.GetFlag() == PaxosMsgFlagType_SendLearnValue_NeedAck {
 		learner.ResetAskforLearnNoop(GetAskforLearnInterval())
-		learner.SendLearnValue_Ack(msg.GetNodeID())
+		learner.SendLearnValueAck(msg.GetNodeID())
 	}
 }
 
 // 发送确认信息
 // 并不是每学习一个value, 就发送ack，而是学习了ack_lead个value之后才发送ack,这样可以减少网络请求
-// TODO　为什么不是发送一条确定一条 ???
-func (learner *Learner) SendLearnValue_Ack(sendNodeId uint64) {
-	log.Infof("START LastAck.Instanceid %d Now.Instanceid %d", learner.lastAckInstanceId, learner.GetInstanceId())
+func (learner *Learner) SendLearnValueAck(sendNodeId uint64) {
+	log.Infof("START LastAck.Instanceid %d Now.Instanceid %d",
+		learner.lastAckInstanceId, learner.GetInstanceId())
 
 	if learner.GetInstanceId() < learner.lastAckInstanceId+uint64(GetLearnerReceiver_Ack_Lead()) {
 		log.Info("no need ack")
@@ -420,7 +428,7 @@ func (learner *Learner) SendLearnValue_Ack(sendNodeId uint64) {
 }
 
 // 接收到ack信息，更新sender信息
-func (learner *Learner) OnSendLearnValue_Ack(msg *PaxosMsg) {
+func (learner *Learner) OnSendLearnValueAck(msg *PaxosMsg) {
 	log.Info("Msg.Ack.Instanceid %d Msg.from_nodeid %d", msg.GetInstanceID(), msg.GetNodeID())
 	learner.sender.Ack(msg.GetInstanceID(), msg.GetNodeID())
 }
@@ -465,8 +473,8 @@ func (learner *Learner) ProposerSendSuccess(instanceId uint64, proposalId uint64
 	learner.broadcastMessage(msg, BroadcastMessage_Type_RunSelf_First, Default_SendType)
 }
 
-/**
-TODO learner的状态要proposer的accept请求被多数通过才能更新 ???
+/*
+	TODO learner的状态要proposer的accept请求被多数通过才能更新 ???
  */
 func (learner *Learner) OnProposerSendSuccess(msg *PaxosMsg) {
 	log.Infof("[%s]OnProposerSendSuccess Msg.InstanceID %d Now.InstanceID %d Msg.ProposalID %d "+
@@ -503,7 +511,7 @@ func (learner *Learner) OnProposerSendSuccess(msg *PaxosMsg) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+// TODO
 func (learner *Learner) AskforCheckpoint(sendNodeId uint64) error {
 	err := learner.ckMnger.PrepareForAskforCheckpoint(sendNodeId)
 	if err != nil {

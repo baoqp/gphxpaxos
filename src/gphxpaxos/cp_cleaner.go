@@ -109,7 +109,9 @@ func (cleaner *Cleaner) FixMinChosenInstanceID(oldMinChosenInstanceId uint64) er
 	cpInstanceId := cleaner.factory.GetCheckpointInstanceId(cleaner.config.GetMyGroupId()) + 1
 	fixMinChosenInstanceId := oldMinChosenInstanceId
 
-	for instanceId := oldMinChosenInstanceId; instanceId < oldMinChosenInstanceId + DELETE_SAVE_INTERVAL; instanceId++ {
+	for instanceId := oldMinChosenInstanceId;
+		instanceId < oldMinChosenInstanceId + DELETE_SAVE_INTERVAL; instanceId++ {
+
 		if instanceId >= cpInstanceId {
 			break
 		}

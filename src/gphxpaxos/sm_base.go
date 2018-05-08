@@ -171,14 +171,16 @@ func (smFac *SMFac) AddSM(statemachine StateMachine) {
 
 func (smFac *SMFac) GetCheckpointInstanceId(groupIdx int32) uint64 {
 	cpInstanceId := INVALID_INSTANCEID
-	cpInstanceId_Insize := INVALID_INSTANCEID
+	cpInstanceIdInsize := INVALID_INSTANCEID
+
 	haveUseSm := false
 
-	//system variables
-	//master variables
-	//if no user state machine, system and master's can use.
-	//if have user state machine, use user'state machine's checkpointinstanceid.
+	// system variables
+	// master variables
+	// if no user state machine, system and master's can use.
+	// if have user state machine, use user'state machine's checkpointInstanceId.
 	for smid, sm := range smFac.stateMachines {
+
 		instanceId := sm.GetCheckpointInstanceId(groupIdx)
 
 		if smid == SYSTEM_V_SMID || smid == MASTER_V_SMID {
@@ -187,8 +189,8 @@ func (smFac *SMFac) GetCheckpointInstanceId(groupIdx int32) uint64 {
 				continue
 			}
 
-			if instanceId > cpInstanceId_Insize || cpInstanceId_Insize == INVALID_INSTANCEID {
-				cpInstanceId_Insize = instanceId
+			if instanceId > cpInstanceIdInsize || cpInstanceIdInsize == INVALID_INSTANCEID {
+				cpInstanceIdInsize = instanceId
 			}
 
 			continue
@@ -208,7 +210,7 @@ func (smFac *SMFac) GetCheckpointInstanceId(groupIdx int32) uint64 {
 	if haveUseSm {
 		return cpInstanceId
 	}
-	return cpInstanceId_Insize
+	return cpInstanceIdInsize
 }
 
 func (smFac *SMFac) GetSMList() map[int32]StateMachine {

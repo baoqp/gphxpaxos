@@ -96,7 +96,7 @@ func (logStore *LogStore) Init(path string, db *Database) error {
 	}
 
 	// 扩展文件，只有在初始文件为空时，会生成一个固定大小的文件
-	err = logStore.expendFile(logStore.file, &logStore.nowFileSize)
+	err = logStore.expandFile(logStore.file, &logStore.nowFileSize)
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (logStore *LogStore) Read(fileIdstr string, instanceId *uint64) ([]byte, er
 
 	file, err := logStore.OpenFile(fileId)
 	if err != nil {
-		log.Error("openfile %s error %v", fileId, err)
+		log.Errorf("open file %s error %v", fileId, err)
 		return nil, err
 	}
 
@@ -220,11 +220,6 @@ func (logStore *LogStore) Read(fileIdstr string, instanceId *uint64) ([]byte, er
 	}
 
 	util.DecodeUint64(tmpbuf, 0, instanceId)
-
-	/*
-	log.Infof("ok, fileid %d offset %d instanceid %d buffser size %d",
-	  fileId, offset, *instanceId, int(bufferlen)-util.UINT64SIZE)
-	*/
 
 	return tmpbuf[UINT64SIZE:], nil
 }
@@ -274,7 +269,7 @@ func (logStore *LogStore) ForceDel(fileIdStr string, instanceId uint64) error {
 // 删除fileId <= 指定fileId的vfile
 func (logStore *LogStore) DeleteFile(fileId int32) error {
 	if logStore.deletedMaxFileId == -1 {
-		if fileId-2000 > 0 {
+		if fileId - 2000 > 0 {
 			logStore.deletedMaxFileId = fileId - 2000
 		}
 	}
@@ -298,7 +293,7 @@ func (logStore *LogStore) DeleteFile(fileId int32) error {
 
 		err = os.Remove(filePath)
 		if err != nil {
-			log.Error("remove fail, file path %s error: %v", filePath, err)
+			log.Errorf("remove fail, file path %s error: %v", filePath, err)
 			break
 		}
 
@@ -309,9 +304,10 @@ func (logStore *LogStore) DeleteFile(fileId int32) error {
 	return err
 }
 
+// nowOffset 初始为文件开头
 func (logStore *LogStore) rebuildIndex(db *Database, nowOffset *uint64) error {
 	// 1. get max instance id and file id from leveldb 从level db 获取最大的instance id和file id
-	lastFileId, nowInstanceId, err := db.GetMaxinstanceIdFileId()
+	lastFileId, nowInstanceId, err := db.GetMaxInstanceIdFileId()
 	if err != nil {
 		return err
 	}
@@ -328,13 +324,14 @@ func (logStore *LogStore) rebuildIndex(db *Database, nowOffset *uint64) error {
 		return fmt.Errorf("leveldb last fileid %d lagger than meta now fileid %d", fileId, logStore.fileId)
 	}
 
+
 	for nowFileId := fileId; ; nowFileId++ {
 		err = logStore.RebuildIndexForOneFile(nowFileId, offset, db, nowOffset, &nowInstanceId)
 		if err != nil {
 			if err == ErrFileNotExist {
-				if nowFileId != 0 && nowFileId != logStore.fileId+1 {
+				if nowFileId != 0 && nowFileId != logStore.fileId + 1 {
 					err = fmt.Errorf("meta file wrong, now file id %d meta file id %d", nowFileId, logStore.fileId)
-					log.Error("%v", err)
+					log.Errorf("%v", err)
 					return ErrInvalidMetaFileId
 				}
 				log.Infof("end rebuild ok, now file id:%d", nowFileId)
@@ -402,7 +399,7 @@ func (logStore *LogStore) RebuildIndexForOneFile(fileId int32, offset uint64,
 
 		if n != INT32SIZE {
 			needTruncate = true
-			log.Error("read len %d not equal to %d, need truncate", n, INT32SIZE)
+			log.Errorf("read len %d not equal to %d, need truncate", n, INT32SIZE)
 			err = nil
 			break
 		}
@@ -410,7 +407,7 @@ func (logStore *LogStore) RebuildIndexForOneFile(fileId int32, offset uint64,
 		len, _ := strconv.Atoi(string(buffer))
 		if len == 0 {
 			*nowWriteOffset = nowOffset
-			log.Debug("file end, file id %d offset %d", fileId, nowOffset)
+			log.Debugf("file end, file id %d offset %d", fileId, nowOffset)
 			break
 		}
 
@@ -424,7 +421,7 @@ func (logStore *LogStore) RebuildIndexForOneFile(fileId int32, offset uint64,
 		n, err = file.Read(buffer)
 		if n != len {
 			needTruncate = true
-			log.Error("read len %d not equal to %d, need truncate", n, len)
+			log.Errorf("read len %d not equal to %d, need truncate", n, len)
 			break
 		}
 
@@ -432,7 +429,7 @@ func (logStore *LogStore) RebuildIndexForOneFile(fileId int32, offset uint64,
 		util.DecodeUint64(buffer, 0, &instanceId)
 
 		if instanceId < *nowInstanceId {
-			log.Error("file data wrong, read instanceid %d smaller than now instanceid %d", instanceId, *nowInstanceId)
+			log.Errorf("file data wrong, read instanceid %d smaller than now instanceid %d", instanceId, *nowInstanceId)
 			err = ErrInvalidInstanceId
 			break
 		}
@@ -444,7 +441,7 @@ func (logStore *LogStore) RebuildIndexForOneFile(fileId int32, offset uint64,
 		if err != nil {
 			logStore.nowFileOffset = uint64(nowOffset)
 			needTruncate = true
-			log.Error("this instance buffer wrong, can't parse to acceptState, instanceid %d bufferlen %d nowoffset %d",
+			log.Errorf("this instance buffer wrong, can't parse to acceptState, instanceid %d bufferlen %d nowoffset %d",
 				instanceId, len-UINT64SIZE, nowOffset)
 			err = nil
 			break
@@ -469,7 +466,7 @@ func (logStore *LogStore) RebuildIndexForOneFile(fileId int32, offset uint64,
 		log.Infof("truncate fileid %d offset %d filesize %d", fileId, nowOffset, fileLen)
 		err = os.Truncate(filePath, int64(nowOffset))
 		if err != nil {
-			log.Error("truncate fail, file path %s truncate to length %d error:%v",
+			log.Errorf("truncate fail, file path %s truncate to length %d error:%v",
 				filePath, nowOffset, err)
 			return err
 		}
@@ -501,7 +498,7 @@ func (logStore *LogStore) EncodeFileId(fileId int32, offset uint64, cksum uint32
 	*fileIdStr = string(buffer)
 }
 
-func (logStore *LogStore) expendFile(file *os.File, fileSize *uint64) error {
+func (logStore *LogStore) expandFile(file *os.File, fileSize *uint64) error {
 	var err error
 	var size int64
 	size, err = file.Seek(0, os.SEEK_END)
@@ -543,35 +540,35 @@ func (logStore *LogStore) getFileId(needWriteSize uint32, fileId *int32, offset 
 	*offset = uint32(ret)
 
 	// 如果当前文件大小不够，需要新建一个vfile
-	if uint64(*offset+needWriteSize) > logStore.nowFileSize {
+	if uint64(*offset + needWriteSize) > logStore.nowFileSize {
 		logStore.file.Close()
 		logStore.file = nil
 
 		err = logStore.IncreaseFileId()
 		if err != nil {
-			log.Error("new file increase fileid fail, now fileid %d", logStore.fileId)
+			log.Errorf("new file increase fileid fail, now fileid %d", logStore.fileId)
 			return err
 		}
 
 		logStore.file, err = logStore.OpenFile(logStore.fileId)
 		if err != nil {
-			log.Error("new file increase fileid fail, now fileid %d", logStore.fileId)
+			log.Errorf("new file increase fileid fail, now fileid %d", logStore.fileId)
 			return err
 		}
 
 		ret = -1
 		ret, err = logStore.file.Seek(0, os.SEEK_END)
 		if ret != 0 {
-			log.Error("new file but file already exist,now file id %d exist filesize %d", logStore.fileId, ret)
-			err = fmt.Errorf("Increase file id success, but file exist, data wrong, file size %d", ret)
+			log.Errorf("new file but file already exist,now file id %d exist filesize %d", logStore.fileId, ret)
+			err = fmt.Errorf("increase file id success, but file exist, data wrong, file size %d", ret)
 			return err
 		}
 		*offset = uint32(ret)
 
-		err = logStore.expendFile(logStore.file, &logStore.nowFileSize)
+		err = logStore.expandFile(logStore.file, &logStore.nowFileSize)
 		if err != nil {
 			err = fmt.Errorf("new file expand fail, file id %d", logStore.fileId)
-			log.Error("new file expand file fail, now file id %d", logStore.fileId)
+			log.Errorf("new file expand file fail, now file id %d", logStore.fileId)
 			logStore.file.Close()
 			logStore.file = nil
 			return err

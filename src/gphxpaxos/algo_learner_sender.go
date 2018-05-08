@@ -83,6 +83,9 @@ func (learnerSender *LearnerSender) IsImSending() bool {
 	return true
 }
 
+/*
+检查学习者的确认消息，并不是每发一条数据就要确认，而是在超过GetLearnerSenderAckLead条时才确认
+ */
 func (learnerSender *LearnerSender) CheckAck(sendInstanceId uint64) bool {
 	if sendInstanceId < learnerSender.ackInstanceID {
 		log.Info("Already catch up, ack instanceid %d now send instanceid %d",
@@ -90,14 +93,14 @@ func (learnerSender *LearnerSender) CheckAck(sendInstanceId uint64) bool {
 		return false
 	}
 
-	for sendInstanceId > learnerSender.ackInstanceID+uint64(GetLearnerSender_Ack_Lead()) {
+	for sendInstanceId > learnerSender.ackInstanceID + uint64(GetLearnerSenderAckLead()) {
 		nowTime := util.NowTimeMs()
 		var passTime uint64 = 0
 		if nowTime > learnerSender.absLastAckTime {
 			passTime = nowTime - learnerSender.absLastAckTime
 		}
 
-		if passTime >= uint64(GetLearnerSender_Ack_Lead()) {
+		if passTime >= uint64(GetLearnerSenderAckTimeoutMs()) {
 			log.Errorf("Ack timeout, last acktime %d now send instanceid %d",
 				learnerSender.absLastAckTime, sendInstanceId)
 			return false
@@ -111,11 +114,11 @@ func (learnerSender *LearnerSender) CheckAck(sendInstanceId uint64) bool {
 
 func (learnerSender *LearnerSender) Prepare(beginInstanceId uint64, sendToNodeId uint64) bool {
 	learnerSender.mutex.Lock()
+	defer learnerSender.mutex.Unlock()
 
 	prepareRet := false
 	if !learnerSender.IsImSending() && !learnerSender.isConfirmed {
 		prepareRet = true
-
 		learnerSender.isSending = true
 		learnerSender.absLastSendTime = util.NowTimeMs()
 		learnerSender.absLastAckTime = learnerSender.absLastSendTime
@@ -124,27 +127,31 @@ func (learnerSender *LearnerSender) Prepare(beginInstanceId uint64, sendToNodeId
 		learnerSender.sendToNodeID = sendToNodeId
 	}
 
-	learnerSender.mutex.Unlock()
 	return prepareRet
 }
 
 func (learnerSender *LearnerSender) Confirm(beginInstanceId uint64, sendToNodeId uint64) bool {
 	learnerSender.mutex.Lock()
+	defer learnerSender.mutex.Unlock()
 
 	confirmRet := false
 	if learnerSender.IsImSending() && !learnerSender.isConfirmed {
-		if learnerSender.beginInstanceID == beginInstanceId && learnerSender.sendToNodeID == sendToNodeId {
+		if learnerSender.beginInstanceID == beginInstanceId &&
+			learnerSender.sendToNodeID == sendToNodeId {
+
 			confirmRet = true
 			learnerSender.isConfirmed = true
 		}
 	}
 
-	learnerSender.mutex.Unlock()
 	return confirmRet
 }
 
+// 接收被学习者的确认消息并更新状态
 func (learnerSender *LearnerSender) Ack(ackInstanceId uint64, fromNodeId uint64) {
 	learnerSender.mutex.Lock()
+	defer learnerSender.mutex.Unlock()
+
 	if learnerSender.IsImSending() && learnerSender.isConfirmed {
 		if learnerSender.sendToNodeID == fromNodeId {
 			if ackInstanceId > learnerSender.ackInstanceID {
@@ -153,24 +160,25 @@ func (learnerSender *LearnerSender) Ack(ackInstanceId uint64, fromNodeId uint64)
 			}
 		}
 	}
-	learnerSender.mutex.Unlock()
+
 }
 
 func (learnerSender *LearnerSender) WaitToSend() {
 	learnerSender.mutex.Lock()
+	defer learnerSender.mutex.Unlock()
 
-	for !learnerSender.isConfirmed {
+	for !learnerSender.isConfirmed { // 当被学习者收到学习者的确认消息后才开始发送数据
 		time.Sleep(100 * time.Millisecond)
 		if learnerSender.isEnd {
 			break
 		}
 	}
 
-	learnerSender.mutex.Unlock()
 }
 
 func (learnerSender *LearnerSender) SendLearnedValue(beginInstanceId uint64, sendToNodeId uint64) {
-	log.Info("BeginInstanceID %d SendToNodeID %d", beginInstanceId, sendToNodeId)
+	log.Infof("SendLearnedValue beginInstanceID %d sendToNodeID %d",
+		beginInstanceId, sendToNodeId)
 
 	sendInstanceId := beginInstanceId
 
@@ -179,7 +187,8 @@ func (learnerSender *LearnerSender) SendLearnedValue(beginInstanceId uint64, sen
 	if sendQps > 1000 {
 		sleepMs = sendQps/1000 + 1
 	}
-	var sendInterval uint64 = sleepMs
+
+	var sendInterval = sleepMs
 
 	var sendCnt uint64 = 0
 	var lastCksum uint32
@@ -206,6 +215,7 @@ func (learnerSender *LearnerSender) SendLearnedValue(beginInstanceId uint64, sen
 	}
 }
 
+// 从logStore中读取一条数据并发送
 func (learnerSender *LearnerSender) SendOne(sendInstanceId uint64, sendToNodeId uint64, lastCksum *uint32) error {
 	var state = &AcceptorStateData{}
 	err := learnerSender.paxosLog.ReadState(learnerSender.config.GetMyGroupId(), sendInstanceId, state)
@@ -219,7 +229,6 @@ func (learnerSender *LearnerSender) SendOne(sendInstanceId uint64, sendToNodeId 
 		state.GetAcceptedValue(), *lastCksum, true)
 
 	*lastCksum = state.GetChecksum()
-
 	return err
 }
 

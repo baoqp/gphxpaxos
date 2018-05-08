@@ -124,7 +124,7 @@ func GetLearnerSenderPrepareTimeoutMs() int {
 	return 5000
 }
 
-func GetLearnerSender_Ack_TimeoutMs() int {
+func GetLearnerSenderAckTimeoutMs() int {
 	if GetInsideOptions().isLargeBufferMode {
 		return 6000
 	}
@@ -132,11 +132,10 @@ func GetLearnerSender_Ack_TimeoutMs() int {
 	return 5000
 }
 
-func GetLearnerSender_Ack_Lead() int {
+func GetLearnerSenderAckLead() int {
 	if GetInsideOptions().isLargeBufferMode {
 		return 5
 	}
-
 	return 21
 }
 

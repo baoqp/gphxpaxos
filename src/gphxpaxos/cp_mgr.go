@@ -9,8 +9,8 @@ type CheckpointManager struct {
 	cleaner    *Cleaner
 	replayer   *Replayer
 
-	minChosenInstanceId    uint64
-	maxChosenInstanceId    uint64
+	minChosenInstanceId    uint64  // TODO ???
+	maxChosenInstanceId    uint64  // TODO ???
 	inAskforCheckpointMode bool
 	useCheckpointReplayer  bool
 
@@ -36,12 +36,15 @@ func NewCheckpointManager(config *Config, factory *SMFac,
 }
 
 func (checkpointManager *CheckpointManager) Init() error {
-	instanceId, err := checkpointManager.logStorage.GetMinChosenInstanceId(checkpointManager.config.GetMyGroupId())
+	instanceId, err := checkpointManager.logStorage.GetMinChosenInstanceId(
+		checkpointManager.config.GetMyGroupId())
+
 	if err != nil {
 		return err
 	}
 
 	checkpointManager.minChosenInstanceId = instanceId
+	// TODO 如果logStore中保存的MinChosenInstanceId不对，是由什么原因引起的，有什么影响 ???
 	err = checkpointManager.cleaner.FixMinChosenInstanceID(checkpointManager.minChosenInstanceId)
 	if err != nil {
 		return err
@@ -125,6 +128,7 @@ func (checkpointManager *CheckpointManager) SetMinChosenInstanceId(instanceId ui
 	return nil
 }
 
+// TODO checkoutpoint即快照，是对状态机的状态做的快照，多个状态机如何处理 ???
 func (checkpointManager *CheckpointManager) GetCheckpointInstanceID() uint64 {
 	return checkpointManager.factory.GetCheckpointInstanceId(checkpointManager.groupId())
 }

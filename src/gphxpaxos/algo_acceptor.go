@@ -201,7 +201,6 @@ func (acceptor *Acceptor) GetAcceptorState() *AcceptorState {
 // handle paxos prepare msg 处理prepare msg
 func (acceptor *Acceptor) onPrepare(msg *PaxosMsg) error {
 
-
 	log.Infof("[%s]start prepare msg instanceId %d, from %d, proposalId %d, value_len %d",
 		acceptor.instance.String(), msg.GetInstanceID(), msg.GetNodeID(), msg.GetProposalID(), len(msg.GetValue()))
 
