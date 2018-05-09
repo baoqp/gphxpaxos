@@ -28,7 +28,7 @@ func NewSystemVSM(groupId int32, myNodeId uint64, logstorage LogStorage,
 }
 
 func (systemVSM *SystemVSM) Init() error {
-	systemVSM.systemVariables =  &SystemVariables{}
+	systemVSM.systemVariables = &SystemVariables{}
 	err := systemVSM.systemStore.Read(systemVSM.myGroupId, systemVSM.systemVariables)
 	if err != nil && err != ErrKeyNotFound {
 		return err
@@ -91,6 +91,7 @@ func (systemVSM *SystemVSM) UpdateSystemVariables(variables *SystemVariables) er
 	return nil
 }
 
+
 func (systemVSM *SystemVSM) Execute(groupId int32, instanceId uint64, value []byte, ctx *SMCtx) error {
 	var variables = &SystemVariables{}
 	err := proto.Unmarshal(value, variables)
@@ -99,6 +100,7 @@ func (systemVSM *SystemVSM) Execute(groupId int32, instanceId uint64, value []by
 		return err
 	}
 
+	// TODO smret 好像没用啊
 	var smret error
 	if ctx != nil && ctx.PCtx != nil {
 		smret = (ctx.PCtx).(error)
@@ -143,7 +145,7 @@ func (systemVSM *SystemVSM) GetMembership(nodes *NodeInfoList, version *uint64) 
 	}
 }
 
-func (systemVSM *SystemVSM) Membership_OPValue(nodes NodeInfoList, version uint64, value *[]byte) error {
+func (systemVSM *SystemVSM) MembershipOPValue(nodes NodeInfoList, version uint64, value *[]byte) error {
 
 	variables := &SystemVariables{
 		Version: proto.Uint64(version),
@@ -169,7 +171,7 @@ func (systemVSM *SystemVSM) Membership_OPValue(nodes NodeInfoList, version uint6
 	return nil
 }
 
-func (systemVSM *SystemVSM) CreateGid_OPValue(gid uint64) ([]byte, error) {
+func (systemVSM *SystemVSM) CreateGidOPValue(gid uint64) ([]byte, error) {
 	variables := proto.Clone(systemVSM.systemVariables).(*SystemVariables)
 	variables.Gid = proto.Uint64(gid)
 	value, err := proto.Marshal(variables)
@@ -240,7 +242,7 @@ func (systemVSM *SystemVSM) IsIMInMembership() bool {
 }
 
 func (systemVSM *SystemVSM) GetCheckpointBuffer() ([]byte, error) {
-	// TODO 使用的地方需要判断是否为空
+
 	if systemVSM.systemVariables.GetVersion() == INVALID_VERSION ||
 		systemVSM.systemVariables.GetGid() == 0 {
 

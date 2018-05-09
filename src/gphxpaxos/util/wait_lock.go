@@ -20,7 +20,6 @@ type Waitlock struct {
 }
 
 func NewWaitlock() *Waitlock {
-
 	return &Waitlock{
 		inUse:        false,
 		waitChan:     make(chan bool, 0),

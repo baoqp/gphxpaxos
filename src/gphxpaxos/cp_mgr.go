@@ -6,6 +6,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+// checkpoint wiki
+// https://github.com/Tencent/phxpaxos/wiki/%E7%8A%B6%E6%80%81%E6%9C%BACheckpoint%E8%AF%A6%E8%A7%A3
 type CheckpointManager struct {
 	config     *Config
 	logStorage LogStorage
@@ -132,7 +134,6 @@ func (checkpointManager *CheckpointManager) SetMinChosenInstanceId(instanceId ui
 	return nil
 }
 
-// TODO checkoutpoint即快照，是对状态机的状态做的快照，多个状态机如何处理 ???
 func (checkpointManager *CheckpointManager) GetCheckpointInstanceID() uint64 {
 	return checkpointManager.factory.GetCheckpointInstanceId(checkpointManager.groupId())
 }

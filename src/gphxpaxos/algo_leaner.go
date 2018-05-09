@@ -158,7 +158,7 @@ func (learner *Learner) Stop() {
 }
 
 func (learner *Learner) IsImLatest() bool {
-	return learner.GetInstanceId()+1 >= learner.highestSeenInstanceID
+	return learner.GetInstanceId() + 1 >= learner.highestSeenInstanceID
 }
 
 func (learner *Learner) GetSeenLatestInstanceID() uint64 {
@@ -474,10 +474,9 @@ func (learner *Learner) ProposerSendSuccess(instanceId uint64, proposalId uint64
 	learner.broadcastMessage(msg, BroadcastMessage_Type_RunSelf_First, Default_SendType)
 }
 
-/*
-	TODO learner的状态要proposer的accept请求被多数通过才能更新 ???
- */
+
 func (learner *Learner) OnProposerSendSuccess(msg *PaxosMsg) {
+
 	log.Infof("[%s]OnProposerSendSuccess Msg.InstanceID %d Now.InstanceID %d Msg.ProposalID %d "+
 		"State.AcceptedID %d State.AcceptedNodeID %d, Msg.from_nodeid %d",
 		learner.instance.String(), msg.GetInstanceID(), learner.GetInstanceId(), msg.GetProposalID(),
@@ -503,6 +502,7 @@ func (learner *Learner) OnProposerSendSuccess(msg *PaxosMsg) {
 		return
 	}
 
+	// 不需要写入，因为acceptor已经写入过；如果是落后的节点或者由于某些原因没有参与本轮投票的节点可以通过leaner学习
 	learner.state.LearnValueWithoutWrite(msg.GetInstanceID(),
 		learner.acceptor.GetAcceptorState().GetAcceptedValue(),
 		learner.acceptor.GetAcceptorState().GetChecksum())

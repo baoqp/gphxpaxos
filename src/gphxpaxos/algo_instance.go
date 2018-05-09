@@ -2,7 +2,6 @@ package gphxpaxos
 
 import (
 	log "github.com/sirupsen/logrus"
-	"sync"
 	"fmt"
 	"time"
 	"gphxpaxos/util"
@@ -40,7 +39,6 @@ type Instance struct {
 
 	ckMnger      *CheckpointManager
 	lastChecksum uint32
-	mutex        sync.Mutex
 }
 
 func NewInstance(cfg *Config, logstorage LogStorage, transport MsgTransport,
@@ -250,18 +248,13 @@ func (instance *Instance) PlayLog(beginInstanceId uint64, endInstanceId uint64) 
 	return nil
 }
 
-func (instance *Instance) NowInstanceId() uint64 {
-	instance.mutex.Lock()
-	defer instance.mutex.Unlock()
-
-	return instance.acceptor.GetInstanceId() - 1
-}
 
 // try to propose a value, return instanceid end error
 func (instance *Instance) Propose(value []byte) (uint64, error) {
 	log.Debug("[%s]try to propose value %s", instance.name, string(value))
 	return instance.committer.NewValue(value)
 }
+
 
 func (instance *Instance) dealRetryMsg() {
 	len := instance.retryMsgList.Len()
@@ -274,7 +267,7 @@ func (instance *Instance) dealRetryMsg() {
 
 		if msgInstanceId > nowInstanceId {
 			break
-		} else if msgInstanceId == nowInstanceId+1 {
+		} else if msgInstanceId == nowInstanceId + 1 {
 			if hasRetry {
 				instance.OnReceivePaxosMsg(msg, true)
 				log.Debug("[%s]retry msg i+1 instanceid %d", msgInstanceId)
@@ -328,6 +321,11 @@ func (instance *Instance) onCommit() { //  gphxpaxos instance.cpp CheckNewValue
 		return
 	}
 
+	if !instance.config.CheckConfig() {
+		instance.commitctx.setResultOnlyRet(PaxosTryCommitRet_Im_Not_In_Membership)
+		return
+	}
+
 	commitValue := instance.commitctx.getCommitValue()
 	if len(commitValue) > GetMaxValueSize() {
 		log.Errorf("[%s]value size %d to large, skip commit new value", instance.name, len(commitValue))
@@ -340,14 +338,15 @@ func (instance *Instance) onCommit() { //  gphxpaxos instance.cpp CheckNewValue
 		instance.commitTimerId = instance.timerThread.AddTimer(timeOutMs, Timer_Instance_Commit_Timeout, instance)
 	}
 
-	if instance.config.GetIsUseMembership() &&
+
+	if instance.config.IsUseMembership() &&
 		(instance.proposer.GetInstanceId() == 0 || instance.config.GetGid() == 0) {
 
 		log.Infof("Need to init system variables, Now.InstanceID %d Now.Gid %d",
 			instance.proposer.GetInstanceId(), instance.config.GetGid())
 
 		gid := util.GenGid(instance.config.MyNodeId)
-		initSVOpValue, err := instance.config.GetSystemVSM().CreateGid_OPValue(gid)
+		initSVOpValue, err := instance.config.GetSystemVSM().CreateGidOPValue(gid)
 
 		if err != nil {
 			log.Errorf("instance on Commit CreateGid_OPValue failed, %v", err)
@@ -495,13 +494,14 @@ func (instance *Instance) receiveMsgForAcceptor(msg *PaxosMsg, isRetry bool) err
 	acceptorInstanceId := instance.acceptor.GetInstanceId()
 
 	log.Infof("[%s]msg instance %d, acceptor instance %d", instance.name, msgInstanceId, acceptorInstanceId)
+
 	// msgInstanceId == acceptorInstanceId + 1  means acceptor instance has been approved
 	// so just learn it
-	// TODO
+	// 此处是处理重复消息的时候才会用到
 	if msgInstanceId == acceptorInstanceId + 1 {
+		// skip success message
 		newMsg := &PaxosMsg{}
-		*newMsg = *msg // 拷贝
-		util.CopyStruct(newMsg, *msg)
+		util.CopyStruct(newMsg, *msg) // *newMsg = *msg
 		newMsg.InstanceID = proto.Uint64(acceptorInstanceId)
 		newMsg.MsgType = proto.Int(MsgType_PaxosLearner_ProposerSendSuccess)
 		log.Debug("learn it, node id: %d:%d", newMsg.GetNodeID(), msg.GetNodeID())
@@ -523,39 +523,21 @@ func (instance *Instance) receiveMsgForAcceptor(msg *PaxosMsg, isRetry bool) err
 		// never reach here
 		log.Errorf("wrong msg type %d", msgType)
 		return ErrInvalidMsg
+	} else if !isRetry && msgInstanceId > acceptorInstanceId {
+		if msgInstanceId < acceptorInstanceId+RETRY_QUEUE_MAX_LEN {
+			//need retry msg precondition
+			//  1. prepare or accept msg
+			//  2. msg.instanceid > nowinstanceid.
+			//    (if < nowinstanceid, this msg is expire)
+			//  3. msg.instanceid >= seen latestinstanceid.
+			//    (if < seen latestinstanceid, proposer don't need reply with this instanceid anymore.)
+			//  4. msg.instanceid close to nowinstanceid.
+			instance.addRetryMsg(msg)
+		} else {
+			instance.clearRetryMsg()
+		}
 	}
 
-	// ignore retry msg
-	if isRetry {
-		log.Debug("ignore retry msg")
-		return nil
-	}
-
-	// ignore expired msg
-	if msgInstanceId <= acceptorInstanceId {
-		log.Debug("[%s]ignore expired %d msg from %d, now %d", instance.name, msgInstanceId,
-			msg.GetNodeID(), acceptorInstanceId)
-		return nil
-	}
-
-	if msgInstanceId < instance.learner.getSeenLatestInstanceId() {
-		log.Debug("ignore has learned msg")
-		return nil
-	}
-
-	// 如果当前节点落后的消息数小于RETRY_QUEUE_MAX_LEN，在加入重试的队列 TODO ???
-	if msgInstanceId < acceptorInstanceId + RETRY_QUEUE_MAX_LEN {
-		//need retry msg precondition
-		//  1. prepare or accept msg
-		//  2. msg.instanceid > nowinstanceid.
-		//    (if < nowinstanceid, this msg is expire)
-		//  3. msg.instanceid >= seen latestinstanceid.
-		//    (if < seen latestinstanceid, proposer don't need reply with this instanceid anymore.)
-		//  4. msg.instanceid close to nowinstanceid.
-		instance.addRetryMsg(msg)
-	} else {
-		instance.clearRetryMsg()
-	}
 	return nil
 }
 

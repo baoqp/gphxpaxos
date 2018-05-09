@@ -20,7 +20,7 @@ type Node struct {
 
 var LOGPATHERR = errors.New("LogStorage Path is null")
 
-func (node *Node) RunNode(options *Options)  error {
+func (node *Node) RunNode(options *Options) error {
 
 	if options.IsLargeValueMode {
 		SetAsLargeBufferMode()
@@ -33,7 +33,7 @@ func (node *Node) RunNode(options *Options)  error {
 
 	network.SetNode(node)
 	network.RunNetWork()
-	return  nil
+	return nil
 }
 
 func (node *Node) InitLogStorage(options *Options) (LogStorage, error) {
@@ -137,7 +137,7 @@ func (node *Node) Init(options *Options) (NetWork, error) {
 	//step1 init logstorage
 	logStorage, err := node.InitLogStorage(options)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	options.LogStorage = logStorage
 
@@ -327,7 +327,7 @@ func (node *Node) ProposalMembership(systemVM *SystemVSM, groupIdx int32,
 	nodeInfoList NodeInfoList, version uint64) error {
 
 	var value = make([]byte, 0)
-	err := systemVM.Membership_OPValue(nodeInfoList, version, &value)
+	err := systemVM.MembershipOPValue(nodeInfoList, version, &value)
 
 	if err != nil {
 		return Paxos_SystemError
@@ -578,7 +578,10 @@ func (node *Node) GetInstanceValue(groupIdx int32, instanceId uint64, retValues 
 }
 
 //-----------------------------------BatchPropose--------------------------------------//
-
+// TODO
+// 调用此接口后，请求将会进入等待队列，当队列请求个数超过指定阈值或队列堆积时间超过指定阈值，库会自动将这些请求合并成一个Propose请求
+// 进行Paxos协议提交。这些请求提交成功后将会获得相同的InstanceID，但不同的BatchIndex。BatchIndex标识这些请求在状态机的确定的执行
+// 顺序。BatchIndex从0开始。
 //Only set options::bUserBatchPropose as true can use this batch API.
 //Warning: BatchProposal will have same llInstanceID returned but different iBatchIndex.
 //Batch values's execute order in StateMachine is certain, the return value iBatchIndex
@@ -587,7 +590,8 @@ func (node *Node) BatchPropose(groupIdx int32, value []byte, instanceId uint64, 
 	return node.BatchProposeWithCtx(groupIdx, value, instanceId, batchIndex, nil)
 }
 
-func (node *Node) BatchProposeWithCtx(groupIdx int32, value []byte, instanceId uint64, batchIndex uint32, smCtx *SMCtx) error {
+func (node *Node) BatchProposeWithCtx(groupIdx int32, value []byte, instanceId uint64, batchIndex uint32,
+	smCtx *SMCtx) error {
 
 	if !node.CheckGroupId(groupIdx) {
 		return Paxos_GroupIdxWrong

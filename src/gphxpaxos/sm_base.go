@@ -30,6 +30,7 @@ func NewSMFac(groupIdx int32) *SMFac {
 }
 
 func (smFac *SMFac) Execute(groupIdx int32, instanceId uint64, paxosValue []byte, ctx *SMCtx) error {
+
 	if !isValidPaxosValue(paxosValue) {
 		log.Errorf("value wrong, instanceid %d size %d", instanceId, len(paxosValue))
 		return InvalidPaxosValue
@@ -51,7 +52,6 @@ func (smFac *SMFac) Execute(groupIdx int32, instanceId uint64, paxosValue []byte
 		return smFac.DoExecute(groupIdx, instanceId, body, smid, ctx)
 	}
 
-	return nil
 }
 
 func (smFac *SMFac) BatchExecute(groupIdx int32, instanceId uint64, paxosValue []byte, ctx *BatchSMCtx) error {
@@ -115,7 +115,7 @@ func (smFac *SMFac) ExecuteForCheckpoint(groupIdx int32, instanceId uint64, paxo
 	}
 
 	if smid == BATCH_PROPOSE_SMID {
-
+ 		return smFac.BatchExecuteForCheckpoint(groupIdx, instanceId, body)
 	} else {
 		return smFac.DoExecuteForCheckpoint(groupIdx, instanceId, body, smid)
 	}

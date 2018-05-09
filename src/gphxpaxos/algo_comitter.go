@@ -19,12 +19,11 @@ type CommitContext struct {
 	commitRet           error
 
 	// the start and end time of commit(in ms)
-	start uint64
-	end   uint64
+	start     uint64
+	end       uint64
+	timeoutMs uint32
 
 	instance *Instance
-
-	timeoutMs uint32
 
 	// wait result channel
 	wait chan bool
@@ -36,12 +35,13 @@ func newCommitContext(instance *Instance) *CommitContext {
 		instance: instance,
 		wait:     make(chan bool),
 	}
-	//context.newCommit(nil, nil)
+	context.newCommit(nil, 0, nil)
 
 	return context
 }
 
 func (commitContext *CommitContext) newCommit(value []byte, timeoutMs uint32, context *SMCtx) {
+
 	commitContext.mutex.Lock()
 	defer commitContext.mutex.Unlock()
 
@@ -72,31 +72,19 @@ func (commitContext *CommitContext) getCommitValue() [] byte {
 }
 
 // 是否是本节点自己提交的消息
-func (commitContext *CommitContext) IsMyCommit(nodeId uint64, instanceId uint64, learnValue []byte) (bool, *SMCtx) {
+func (commitContext *CommitContext) IsMyCommit(nodeId uint64, instanceId uint64,
+	learnValue []byte) (bool, *SMCtx) {
+
 	commitContext.mutex.Lock()
 	defer commitContext.mutex.Unlock()
 
 	isMyCommit := false
-	var ctx *SMCtx
 
-	if nodeId != commitContext.instance.config.GetMyNodeId() {
-		log.Debug("[%s]%d not my instance id", commitContext.instance.String(), nodeId)
-		return false, nil
-	}
-
-	isMyCommit = true
-	// TODO
-	/*
 	if !commitContext.commitEnd && commitContext.instanceId == instanceId {
-		if bytes.Compare(commitContext.value, learnValue) == 0 {
-			isMyCommit = true
-		} else {
-			log.Debug("[%s]%d not my value", commitContext.instance.String(), instanceId)
-			isMyCommit = false
-		}
+		isMyCommit = bytes.Equal(learnValue, commitContext.value)
 	}
-	*/
 
+	var ctx *SMCtx = nil
 	if isMyCommit {
 		ctx = commitContext.stateMachineContext
 	} else {
@@ -105,6 +93,7 @@ func (commitContext *CommitContext) IsMyCommit(nodeId uint64, instanceId uint64,
 	}
 
 	return isMyCommit, ctx
+
 }
 
 func (commitContext *CommitContext) setResultOnlyRet(commitret error) {
@@ -196,8 +185,8 @@ func (committer *Committer) NewValueGetID(value []byte, context *SMCtx) (uint64,
 	var instanceid uint64
 	for i := 0; i < MaxTryCount; i++ {
 		instanceid, err = committer.newValueGetIDNoRetry(value, context)
-		if err != PaxosTryCommitRet_Conflict && err != PaxosTryCommitRet_WaitTimeout  &&
-			err != PaxosTryCommitRet_TooManyThreadWaiting_Reject {  // 可以重试的错误
+		if err != PaxosTryCommitRet_Conflict && err != PaxosTryCommitRet_WaitTimeout &&
+			err != PaxosTryCommitRet_TooManyThreadWaiting_Reject { // 可以重试的错误
 			break
 		}
 
@@ -221,7 +210,7 @@ func (committer *Committer) newValueGetIDNoRetry(value []byte, context *SMCtx) (
 		return 0, PaxosTryCommitRet_TooManyThreadWaiting_Reject
 	}
 
-	if committer.timeoutMs <= uint32(200+lockUseTime) {
+	if committer.timeoutMs <= uint32(200 + lockUseTime) {
 		committer.waitLock.Unlock()
 		committer.timeoutMs = 0
 		return 0, PaxosTryCommitRet_Timeout

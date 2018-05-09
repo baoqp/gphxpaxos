@@ -169,7 +169,7 @@ func (config *Config) GetMasterSM() *MasterStateMachine {
 	return config.MasterStateMachine
 }
 
-func (config *Config) GetIsUseMembership() bool {
+func (config *Config) IsUseMembership() bool {
 	return config.UseMemebership
 }
 
