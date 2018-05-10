@@ -41,7 +41,6 @@ func (s *MasterVariablesStore) Read(groupId int32, variables *MasterVariables) e
 	if err != nil {
 		return err
 	}
-	// TODO not found error
 
 	return proto.Unmarshal(buffer, variables)
 }

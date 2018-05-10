@@ -48,7 +48,7 @@ func (masterSM *MasterStateMachine) Init() error {
 		log.Infof("no master variables exist")
 	} else {
 		masterSM.masterVersion = variables.GetVersion()
-		if variables.GetVersion() == masterSM.myNodeId {
+		if variables.GetMasterNodeid() == masterSM.myNodeId { // TODO ???
 			masterSM.masterNodeId = NULL_NODEID
 			masterSM.absExpireTime = 0
 		} else {
@@ -62,8 +62,8 @@ func (masterSM *MasterStateMachine) Init() error {
 	return nil
 }
 
-
-func (masterSM *MasterStateMachine) ExecuteForCheckpoint(groupIdx int32, instanceId uint64, paxosValue []byte) error {
+func (masterSM *MasterStateMachine) ExecuteForCheckpoint(groupIdx int32, instanceId uint64,
+	paxosValue []byte) error {
 	return nil
 }
 
@@ -71,11 +71,12 @@ func (masterSM *MasterStateMachine) GetCheckpointInstanceId(groupIdx int32) uint
 	return masterSM.masterVersion
 }
 
-func (masterSM *MasterStateMachine) GetCheckpointState(groupIdx int32, dirPath *string, fileList []string) error {
+func (masterSM *MasterStateMachine) GetCheckpointState(groupIdx int32, dirPath *string,
+	fileList []string) error {
 	return nil
 }
 
-func (masterSM *MasterStateMachine)  LockCheckpointState() error {
+func (masterSM *MasterStateMachine) LockCheckpointState() error {
 	return nil
 }
 
@@ -83,8 +84,8 @@ func (masterSM *MasterStateMachine) UnLockCheckpointState() {
 
 }
 
-func (masterSM *MasterStateMachine) LoadCheckpointState(groupIdx int32, checkpointTmpFileDirPath string,
-	fileList []string, checkpointInstanceID uint64) error {
+func (masterSM *MasterStateMachine) LoadCheckpointState(groupIdx int32,
+	checkpointTmpFileDirPath string, fileList []string, checkpointInstanceID uint64) error {
 
 	return nil
 }
@@ -99,7 +100,7 @@ func (masterSM *MasterStateMachine) UpdateMasterToStore(masterNodeId uint64, ver
 	}
 
 	options := &WriteOptions{
-		Sync: false,
+		Sync: true,
 	}
 
 	return masterSM.mvStore.Write(options, masterSM.myGroupId, variables)
@@ -111,6 +112,9 @@ func (masterSM *MasterStateMachine) LearnMaster(instanceId uint64, operator *Mas
 	masterSM.mutex.Lock()
 	defer masterSM.mutex.Unlock()
 
+	log.Debugf("my last version %d other last version %d this version %d instanceid %d",
+		masterSM.masterVersion, operator.GetLastversion(), operator.GetVersion(), instanceId)
+
 	if operator.GetLastversion() != 0 &&
 		instanceId > masterSM.masterVersion &&
 		operator.GetLastversion() != masterSM.masterVersion {
@@ -120,6 +124,7 @@ func (masterSM *MasterStateMachine) LearnMaster(instanceId uint64, operator *Mas
 
 		log.Errorf("try to fix, set my master version %d as other last version %d, instanceid %d",
 			masterSM.masterVersion, operator.GetLastversion(), instanceId)
+
 		masterSM.masterVersion = operator.GetLastversion()
 
 	}
@@ -131,6 +136,7 @@ func (masterSM *MasterStateMachine) LearnMaster(instanceId uint64, operator *Mas
 		return nil
 	}
 
+	// version是master的instanceId
 	err := masterSM.UpdateMasterToStore(operator.GetNodeid(), instanceId, operator.GetTimeout())
 	if err != nil {
 		log.Errorf("UpdateMasterToStore fail %v", err)
@@ -282,7 +288,8 @@ func (masterSM *MasterStateMachine) UpdateByCheckpoint(buffer []byte, change *bo
 		return nil
 	}
 
-	err = masterSM.UpdateMasterToStore(variables.GetMasterNodeid(), variables.GetVersion(), int32(variables.GetLeaseTime()))
+	err = masterSM.UpdateMasterToStore(variables.GetMasterNodeid(), variables.GetVersion(),
+		int32(variables.GetLeaseTime()))
 	if err != nil {
 		return err
 	}

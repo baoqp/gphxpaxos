@@ -85,6 +85,7 @@ var (
 var INVALID_INSTANCEID uint64 = math.MaxUint64
 var NULL_NODEID uint64 = math.MaxUint64 - 1
 var INVALID_VERSION uint64 = math.MaxUint64
+var NoCheckpoint uint64 = math.MaxUint64
 
 var UINT64_0 = uint64(0)
 

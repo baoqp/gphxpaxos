@@ -134,7 +134,7 @@ func (checkpointManager *CheckpointManager) SetMinChosenInstanceId(instanceId ui
 	return nil
 }
 
-func (checkpointManager *CheckpointManager) GetCheckpointInstanceID() uint64 {
+func (checkpointManager *CheckpointManager) GetCheckpointInstanceId() uint64 {
 	return checkpointManager.factory.GetCheckpointInstanceId(checkpointManager.groupId())
 }
 

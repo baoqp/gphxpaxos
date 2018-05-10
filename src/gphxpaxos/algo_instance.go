@@ -88,7 +88,7 @@ func (instance *Instance) Init() error {
 	instance.ckMnger.Init()
 
 	// 从状态机获取checkpointInstanceID
-	cpInstanceId := instance.ckMnger.GetCheckpointInstanceID() + 1
+	cpInstanceId := instance.ckMnger.GetCheckpointInstanceId() + 1
 
 	log.Infof("acceptor OK, log.instanceid %d,  instanceid %d",
 		instance.acceptor.GetInstanceId(), cpInstanceId)
