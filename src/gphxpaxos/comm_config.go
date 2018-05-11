@@ -42,9 +42,7 @@ func (config *Config) Init() error {
 	if err != nil {
 		return err
 	}
-
 	config.SystemVSM.AddNodeIDList(config.NodeInfoList)
-
 	return nil
 }
 

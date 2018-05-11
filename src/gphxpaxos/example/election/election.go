@@ -6,7 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type Election struct {
+type  Election struct {
 	myNode    gphxpaxos.NodeInfo
 	nodeList  gphxpaxos.NodeInfoList
 	paxosNode *gphxpaxos.Node

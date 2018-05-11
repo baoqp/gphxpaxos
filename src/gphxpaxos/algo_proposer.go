@@ -24,7 +24,7 @@ type ProposerState struct {
 	highestOtherProposalId uint64 // 从acceptor返回的其他proposer提的proposalId的最大值
 
 	// save pre-accept ballot number
-	highestOtherPreAcceptBallot BallotNumber
+	highestOtherPreAcceptBallot *BallotNumber
 
 	state int
 }
@@ -73,16 +73,16 @@ func (proposerState *ProposerState) newPrepare() {
 	log.Infof("end proposalid %d", proposerState.proposalId)
 }
 
-func (proposerState *ProposerState) AddPreAcceptValue(otherPreAcceptBallot BallotNumber,
+func (proposerState *ProposerState) AddPreAcceptValue(otherPreAcceptBallot *BallotNumber,
 	otherPreAcceptValue []byte) {
 
 	if otherPreAcceptBallot.IsNull() {
 		return
 	}
 
-	// TODO
+	// TODO 需要 len(otherPreAcceptValue)> 0 就是不为空
 	// update value only when the ballot >  highestOtherPreAcceptBallot
-	if otherPreAcceptBallot.GT(&proposerState.highestOtherPreAcceptBallot) {
+	if otherPreAcceptBallot.GT(proposerState.highestOtherPreAcceptBallot) {
 		proposerState.highestOtherPreAcceptBallot = otherPreAcceptBallot
 		proposerState.value = util.CopyBytes(otherPreAcceptValue)
 	}
@@ -295,7 +295,7 @@ func (proposer *Proposer) OnPrepareReply(msg *PaxosMsg) error {
 	if msg.GetRejectByPromiseID() == 0 {
 		ballot := NewBallotNumber(msg.GetPreAcceptID(), msg.GetPreAcceptNodeID())
 		proposer.msgCounter.AddPromiseOrAccept(msg.GetNodeID())
-		proposer.state.AddPreAcceptValue(*ballot, msg.GetValue())
+		proposer.state.AddPreAcceptValue(ballot, msg.GetValue())
 		log.Debug("[%s]prepare accepted", proposer.instance.String())
 	} else {
 		proposer.msgCounter.AddReject(msg.GetNodeID())

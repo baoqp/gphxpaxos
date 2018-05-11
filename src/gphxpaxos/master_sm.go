@@ -64,6 +64,7 @@ func (masterSM *MasterStateMachine) Init() error {
 
 func (masterSM *MasterStateMachine) ExecuteForCheckpoint(groupIdx int32, instanceId uint64,
 	paxosValue []byte) error {
+
 	return nil
 }
 
@@ -194,6 +195,7 @@ func (masterSM *MasterStateMachine) GetMaster() uint64 {
 	return masterSM.masterNodeId
 }
 
+// TODO
 func (masterSM *MasterStateMachine) GetMasterWithVersion(version *uint64) uint64 {
 	masterNodeId := NULL_NODEID
 	masterSM.SafeGetMaster(&masterNodeId, version)
@@ -226,7 +228,7 @@ func (masterSM *MasterStateMachine) Execute(groupIdx int32, instanceId uint64, v
 			absMasterTimeout = *(ctx.PCtx.(*uint64))
 		}
 
-		log.Infof("absmaster timeout %v", absMasterTimeout)
+		log.Infof("abs master timeout %v", absMasterTimeout)
 
 		err = masterSM.LearnMaster(instanceId, operator, absMasterTimeout)
 		if err != nil {

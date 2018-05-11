@@ -223,7 +223,7 @@ func (acceptor *Acceptor) onPrepare(msg *PaxosMsg) error {
 	//	}
 	//else
 	//  reject
-	if ballot.GT(state.GetPromiseNum()) {
+	if ballot.GE(state.GetPromiseNum()) {
 		log.Infof("[onPrepare Pass] req ballot %s promise bollot %s", ballot.String(), state.GetPromiseNum().String())
 		log.Debugf("[%s][promise]promiseId %d, promiseNodeDd %d, preAcceptedId %d, preAcceptedNodeDd %d",
 			acceptor.instance.String(), state.GetPromiseNum().proposalId, state.GetPromiseNum().nodeId,
@@ -290,7 +290,6 @@ func (acceptor *Acceptor) onAccept(msg *PaxosMsg) error {
 		state.SetPromiseNum(ballot)
 		state.SetAcceptedNum(ballot)
 		state.SetAcceptedValue(msg.GetValue())
-
 		err := state.Persist(acceptor.GetInstanceId(), acceptor.Base.GetLastChecksum())
 		if err != nil {
 			log.Errorf("persist fail, now instanceid %d ret %v", acceptor.GetInstanceId(), err)

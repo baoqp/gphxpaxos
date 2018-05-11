@@ -43,7 +43,7 @@ func (p *KVPaxos) GetMaster(key []byte) *gphxpaxos.NodeInfo {
 	return p.paxosNode.GetMaster(int32(groupIdx))
 }
 
-func (p *KVPaxos) IsIMMaste(key []byte) bool {
+func (p *KVPaxos) IsIMMaster(key []byte) bool {
 	groupIdx := p.GetGroupIdx(key)
 	return p.paxosNode.IsIMMaster(int32(groupIdx))
 }
@@ -114,7 +114,6 @@ func (p *KVPaxos) Put(key []byte, value []byte, version uint64) error {
 	return KVStatus_FAIL
 }
 
-// TODO getLocal能保证拿到最新的???
 func (p *KVPaxos) GetLocal(key []byte) ([]byte, uint64,  error) {
 	value ,version, err := p.kvSM.GetDBClient().Get(key)
 	if err == KV_OK {

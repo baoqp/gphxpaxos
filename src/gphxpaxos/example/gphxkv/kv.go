@@ -31,14 +31,13 @@ var once sync.Once
 var kvClient *LevelDBClient
 
 //单例
-func GetKVClient() *LevelDBClient {
+func GetDBClient() *LevelDBClient {
 
 	once.Do(func() {
 		kvClient = &LevelDBClient{
 			hasInit: false,
 			leveldb: nil,
 		}
-
 	})
 
 	return kvClient

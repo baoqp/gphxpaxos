@@ -215,7 +215,7 @@ func (learner *Learner) askforLearn() {
 }
 
 func (learner *Learner) OnAskforLearn(msg *PaxosMsg) {
-	log.Info("start msg.instanceid %d now.instanceid %d msg.fromnodeid %d",
+	log.Infof("start msg.instanceid %d now.instanceid %d msg.fromnodeid %d",
 		msg.GetInstanceID(), learner.GetInstanceId(), msg.GetNodeID())
 
 	learner.SetSeenInstanceID(msg.GetInstanceID(), msg.GetNodeID())

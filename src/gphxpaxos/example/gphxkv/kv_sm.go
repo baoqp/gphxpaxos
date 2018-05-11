@@ -36,6 +36,7 @@ type KVSM struct {
 func newKVSM(dbPath string) *KVSM {
 	return &KVSM{
 		dbPath:dbPath,
+		dbClient:GetDBClient(),
 	}
 }
 

@@ -29,6 +29,7 @@ func TestEcho(t *testing.T) {
 }
 
 func election1() {
+
 	myNode, nodeList := parseNode("127.0.0.1:11111 127.0.0.1:11111,127.0.0.1:11112,127.0.0.1:11113")
 
 	election := &Election{myNode: *myNode, nodeList: *nodeList}
@@ -52,6 +53,7 @@ func election1() {
 
 
 func election2() {
+
 	myNode, nodeList := parseNode("127.0.0.1:11112 127.0.0.1:11111,127.0.0.1:11112,127.0.0.1:11113")
 
 	election := &Election{myNode: *myNode, nodeList: *nodeList}

@@ -238,7 +238,7 @@ func (node *Node) OnReceiveMessage(message []byte, messageLen int) {
 	var groupId int32 = -1
 	util.DecodeInt32(message, 0, &groupId)
 
-	if node.CheckGroupId(groupId) {
+	if !node.CheckGroupId(groupId) {
 		log.Errorf("Message groupid %d wrong, groupsize %d", groupId, len(node.GroupList))
 	}
 

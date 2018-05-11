@@ -487,7 +487,7 @@ func (multiDatabase *MultiDatabase) Init(dbPath string, groupCount int) error {
 		waitGroup.Add(1)
 		go func(idx int) {
 			defer waitGroup.Done()
-			dbPath := fmt.Sprintf("%sg%d", newDbPath, i)
+			dbPath := fmt.Sprintf("%sg%d", newDbPath, idx)
 			db := &Database{}
 			err = db.Init(dbPath, idx)
 			if err == nil {
@@ -597,6 +597,6 @@ func (multiDatabase *MultiDatabase) GetMasterVariables(groupIdx int32) ([]byte, 
 	if int(groupIdx) > len(multiDatabase.dbList) {
 		return   nil, fmt.Errorf("groupIdx out of bround")
 	}
-
+	fmt.Printf("---GetMasterVariables--- %d \n", groupIdx)
 	return multiDatabase.dbList[groupIdx].GetMasterVariables()
 }

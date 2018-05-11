@@ -11,7 +11,6 @@ import (
 	"fmt"
 )
 
-
 // 实现proto中定义的PhxKVServerServer接口
 type KVServer struct {
 	kvPaxos *KVPaxos
@@ -26,7 +25,7 @@ func NewKVServer(myNode gphxpaxos.NodeInfo, nodeList gphxpaxos.NodeInfoList,
 }
 
 func (s *KVServer) Init() error {
-	err :=  s.kvPaxos.RunPaxos()
+	err := s.kvPaxos.RunPaxos()
 	if err != nil {
 		return err
 	}
@@ -41,6 +40,7 @@ func (s *KVServer) Init() error {
 	RegisterPhxKVServerServer(grpcServer, s)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
+	log.Infof("--start listen on %d---", grpcPort)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 		return err
@@ -52,7 +52,9 @@ func (s *KVServer) Init() error {
 func (s *KVServer) Put(ctx context.Context, request *KVOperator) (
 	reply *KVResponse, err error) {
 
-	if !s.kvPaxos.IsIMMaste(request.GetKey()) {
+	reply = &KVResponse{}
+
+	if !s.kvPaxos.IsIMMaster(request.GetKey()) {
 		reply.Ret = KVStatusCode_MASTER_REDIRECT
 		reply.MasterNodeid = s.kvPaxos.GetMaster(request.GetKey()).NodeId
 		err = nil
@@ -70,7 +72,7 @@ func (s *KVServer) Put(ctx context.Context, request *KVOperator) (
 
 func (s *KVServer) GetLocal(ctx context.Context, request *KVOperator) (
 	reply *KVResponse, err error) {
-
+	reply = &KVResponse{}
 	value, version, err := s.kvPaxos.GetLocal(request.GetKey())
 	if err == KVStatus_SUCC {
 		data := &KVData{
@@ -93,8 +95,8 @@ func (s *KVServer) GetLocal(ctx context.Context, request *KVOperator) (
 
 func (s *KVServer) GetGlobal(ctx context.Context, request *KVOperator) (
 	reply *KVResponse, err error) {
-
-	if !s.kvPaxos.IsIMMaste(request.GetKey()) {
+	reply = &KVResponse{}
+	if !s.kvPaxos.IsIMMaster(request.GetKey()) {
 		reply.Ret = KVStatusCode_MASTER_REDIRECT
 		reply.MasterNodeid = s.kvPaxos.GetMaster(request.GetKey()).NodeId
 		err = nil
@@ -111,8 +113,8 @@ func (s *KVServer) GetGlobal(ctx context.Context, request *KVOperator) (
 
 func (s *KVServer) Delete(ctx context.Context, request *KVOperator) (
 	reply *KVResponse, err error) {
-
-	if !s.kvPaxos.IsIMMaste(request.GetKey()) {
+	reply = &KVResponse{}
+	if !s.kvPaxos.IsIMMaster(request.GetKey()) {
 		reply.Ret = KVStatusCode_MASTER_REDIRECT
 		reply.MasterNodeid = s.kvPaxos.GetMaster(request.GetKey()).NodeId
 		err = nil
