@@ -33,7 +33,7 @@ func newProposalState(config *Config) *ProposerState {
 	proposalState := new(ProposerState)
 	proposalState.config = config
 	proposalState.proposalId = 1
-
+	proposalState.highestOtherPreAcceptBallot = NewBallotNumber(0, 0)
 	return proposalState.init()
 }
 

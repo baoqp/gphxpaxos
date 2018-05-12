@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"gphxpaxos/util"
 	log "github.com/sirupsen/logrus"
+	"sync"
 )
 
 type Node struct {
@@ -127,14 +128,16 @@ func (node *Node) RunProposalBatch() {
 }
 
 func (node *Node) Init(options *Options) (NetWork, error) {
-	err := node.CheckOptions(options)
+
+	var err error
+	err = node.CheckOptions(options)
 	if err != nil {
 		return nil, err
 	}
 
 	node.myNodeId = options.MyNodeInfo.NodeId
 
-	//step1 init logstorage
+	//step1 init log storage
 	logStorage, err := node.InitLogStorage(options)
 	if err != nil {
 		return nil, err
@@ -147,7 +150,7 @@ func (node *Node) Init(options *Options) (NetWork, error) {
 		return nil, err
 	}
 
-	//step3 build masterlist
+	//step3 build master list
 	for i := 0; i < options.GroupCount; i++ {
 		masterMgr := NewMasterMgr(node, int32(i), logStorage, options.MasterChangeCallback)
 		node.MasterList = append(node.MasterList, masterMgr)
@@ -158,13 +161,13 @@ func (node *Node) Init(options *Options) (NetWork, error) {
 		}
 	}
 
-	//step4 build grouplist
+	//step4 build group list
 	for i := 0; i < options.GroupCount; i++ {
 		group := NewGroup(logStorage, network, node.MasterList[i].GetMasterSM(), int32(i), options)
 		node.GroupList = append(node.GroupList, group)
 	}
 
-	//step5 build batchpropose
+	//step5 build batch propose
 	if options.UseBatchPropose {
 		for i := 0; i < options.GroupCount; i++ {
 			proposalBatch := NewProposeBatch(int32(i), node)
@@ -172,12 +175,26 @@ func (node *Node) Init(options *Options) (NetWork, error) {
 		}
 	}
 
-	//step6 init statemachine
+	//step6 init state machine
 	node.InitStateMachine(options)
 
-	//step7 init group  TODO init group parallel
-	for _, group := range node.GroupList {
-		group.StartInit()
+	//step7 init group
+	var waitGroup sync.WaitGroup
+
+	for i := range node.GroupList {
+		waitGroup.Add(1)
+		go func(idx int) {
+			defer waitGroup.Done()
+			initErr := node.GroupList[idx].StartInit()
+			if initErr != nil { // TODO merge initErr
+				err = initErr
+			}
+		}(i)
+	}
+	waitGroup.Wait()
+
+	if err != nil {
+		return nil, err
 	}
 
 	for _, group := range node.GroupList {

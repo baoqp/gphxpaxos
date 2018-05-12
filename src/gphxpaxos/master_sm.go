@@ -29,7 +29,7 @@ func NewMasterStateMachine(groupId int32, myNodeId uint64, logstorage LogStorage
 		myNodeId:             myNodeId,
 		mvStore:              NewMasterVariablesStore(logstorage),
 		masterNodeId:         NULL_NODEID,
-		masterVersion:        uint64(INVALID_VERSION),
+		masterVersion:        INVALID_VERSION,
 		leaseTime:            0,
 		absExpireTime:        0,
 		masterChangeCallback: masterChangeCallback,
@@ -116,6 +116,7 @@ func (masterSM *MasterStateMachine) LearnMaster(instanceId uint64, operator *Mas
 	log.Debugf("my last version %d other last version %d this version %d instanceid %d",
 		masterSM.masterVersion, operator.GetLastversion(), operator.GetVersion(), instanceId)
 
+	// TODO
 	if operator.GetLastversion() != 0 &&
 		instanceId > masterSM.masterVersion &&
 		operator.GetLastversion() != masterSM.masterVersion {
@@ -131,7 +132,7 @@ func (masterSM *MasterStateMachine) LearnMaster(instanceId uint64, operator *Mas
 	}
 
 	if operator.GetVersion() != masterSM.masterVersion {
-		log.Errorf("version conflit, op version %d now master version %d",
+		log.Errorf("version conflict, op version %d now master version %d",
 			operator.GetVersion(), masterSM.masterVersion)
 
 		return nil
@@ -151,9 +152,13 @@ func (masterSM *MasterStateMachine) LearnMaster(instanceId uint64, operator *Mas
 
 	masterSM.masterNodeId = operator.GetNodeid()
 	if masterSM.masterNodeId == masterSM.myNodeId {
+		// self be master
+		// use local abstimeout
 		masterSM.absExpireTime = absMasterTimeout
 		log.Infof("Be master success, absexpiretime %d", masterSM.absExpireTime)
 	} else {
+		// other be master
+		// use new start timeout
 		masterSM.absExpireTime = util.NowTimeMs() + uint64(operator.GetTimeout())
 		log.Infof("Other be master, absexpiretime %d", masterSM.absExpireTime)
 	}
@@ -195,9 +200,9 @@ func (masterSM *MasterStateMachine) GetMaster() uint64 {
 	return masterSM.masterNodeId
 }
 
-// TODO
+
 func (masterSM *MasterStateMachine) GetMasterWithVersion(version *uint64) uint64 {
-	masterNodeId := NULL_NODEID
+	var masterNodeId uint64
 	masterSM.SafeGetMaster(&masterNodeId, version)
 	return masterNodeId
 }
@@ -225,8 +230,9 @@ func (masterSM *MasterStateMachine) Execute(groupIdx int32, instanceId uint64, v
 	if operator.GetOperator() == MasterOperatorType_Complete {
 		var absMasterTimeout uint64 = 0
 		if ctx != nil && ctx.PCtx != nil {
-			absMasterTimeout = *(ctx.PCtx.(*uint64))
+			absMasterTimeout = ctx.PCtx.(uint64)
 		}
+
 
 		log.Infof("abs master timeout %v", absMasterTimeout)
 
@@ -296,7 +302,7 @@ func (masterSM *MasterStateMachine) UpdateByCheckpoint(buffer []byte, change *bo
 		return err
 	}
 
-	log.Infof("ok, cp.version %d cp.masternodeid %d old.version %d old.masternodeid %d",
+	log.Infof("ok, cp.version %d cp.masterNodeId %d old.version %d old.masterNodeId %d",
 		variables.GetVersion(), variables.GetMasterNodeid(), masterSM.masterVersion, masterSM.masterNodeId)
 
 	masterChange := false

@@ -22,7 +22,8 @@ func NewMasterMgr(paxosNode *Node, groupId int32, logStorage LogStorage,
 
 	masterMgr := &MasterMgr{isEnd: false, isStarted: false, needDropMaster: false,
 		leaseTime: 10000, paxosNode: paxosNode}
-	masterMgr.defaultMasterSM = NewMasterStateMachine(groupId, paxosNode.GetMyNodeId(), logStorage, callback)
+	masterMgr.defaultMasterSM = NewMasterStateMachine(groupId, paxosNode.GetMyNodeId(),
+		logStorage, callback)
 	return masterMgr
 }
 
@@ -31,7 +32,7 @@ func (mgr *MasterMgr) Init() error {
 }
 
 func (mgr *MasterMgr) SetLeaseTime(leaseTimeMs int) {
-	if leaseTimeMs < 10000 {
+	if leaseTimeMs < 1000 {
 		return
 	}
 	mgr.leaseTime = leaseTimeMs
@@ -53,7 +54,7 @@ func (mgr *MasterMgr) RunMaster() {
 }
 
 func (mgr *MasterMgr) Start() {
-	// TODO run mgr main()
+	util.StartRoutine(mgr.main)
 }
 
 func (mgr *MasterMgr) main() {
@@ -66,7 +67,7 @@ func (mgr *MasterMgr) main() {
 		mgr.TryBeMaster(leaseTime)
 
 		continueLeaseTimeout := (leaseTime - 100 ) / 4
-		continueLeaseTimeout = continueLeaseTimeout / 2 + util.Rand(continueLeaseTimeout) // TODO ???
+		continueLeaseTimeout = continueLeaseTimeout/2 + util.Rand(continueLeaseTimeout) // TODO ???
 
 		if mgr.needDropMaster {
 			mgr.needDropMaster = false
@@ -75,12 +76,11 @@ func (mgr *MasterMgr) main() {
 			log.Infof("Need drop master, this round wait time %dms", continueLeaseTimeout)
 		}
 
-
 		endTime := util.NowTimeMs()
 
 		runTime := uint64(0)
 		if endTime > beginTime {
-			runTime =  endTime - beginTime
+			runTime = endTime - beginTime
 		}
 
 		needSleepTime := uint64(0)
@@ -100,7 +100,7 @@ func (mgr *MasterMgr) TryBeMaster(leaseTime int) {
 	//step 1 check exist master and get version
 	mgr.defaultMasterSM.SafeGetMaster(&masterNodeId, &masterVersion)
 	if masterNodeId != NULL_NODEID && masterNodeId != mgr.paxosNode.GetMyNodeId() {
-		log.Infof("Ohter as master, can't try be master, masterid %d myid %d",
+		log.Infof("Other as master, can't try be master, masterId %d myId %d",
 			masterNodeId, mgr.paxosNode.GetMyNodeId())
 		return
 	}
@@ -118,22 +118,11 @@ func (mgr *MasterMgr) TryBeMaster(leaseTime int) {
 	absMasterTimeout := util.NowTimeMs() + masterLeaseTimeout
 	commitInstanceId := uint64(0)
 
-	ctx := &SMCtx{SMID:MASTER_V_SMID, PCtx:absMasterTimeout}
+	ctx := &SMCtx{SMID: MASTER_V_SMID, PCtx: absMasterTimeout}
 
 	mgr.paxosNode.ProposeWithCtx(mgr.myGroupId, value, &commitInstanceId, ctx)
 }
 
-func (mgr *MasterMgr)  GetMasterSM() *MasterStateMachine {
+func (mgr *MasterMgr) GetMasterSM() *MasterStateMachine {
 	return mgr.defaultMasterSM
 }
-
-
-
-
-
-
-
-
-
-
-
