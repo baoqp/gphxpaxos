@@ -114,6 +114,7 @@ func (node *Node) InitStateMachine(options *Options) {
 func (node *Node) RunMaster(options *Options) {
 	for _, groupSMInfo := range options.GroupSMInfoList {
 		if groupSMInfo.IsUseMaster {
+			log.Infof("------------RunMaster in Node %d \n", node.myNodeId)
 			if !node.GroupList[groupSMInfo.GroupIdx].config.IsIMFollower() {
 				node.MasterList[groupSMInfo.GroupIdx].RunMaster()
 			}
@@ -483,20 +484,24 @@ func (node *Node) ChangeMember(groupIdx int32, fromNode *NodeInfo, toNode *NodeI
 func (node *Node) GetMaster(groupIdx int32) *NodeInfo {
 
 	if !node.CheckGroupId(groupIdx) {
+
+		log.Info("-----------GetMaster CheckGroupId failed----")
 		return &NodeInfo{NodeId: NULL_NODEID}
 	}
 
-	nodeInfo := NewNodeInfoWithId(node.MasterList[int(groupIdx)].GetMasterSM().GetMaster())
+	nodeInfo := NewNodeInfoWithId(
+		node.MasterList[int(groupIdx)].GetMasterSM().GetMaster())
 	return nodeInfo
 }
 
 //Check who is master and get version.
-func (node *Node) GetMasterWithVersion(groupIdx int32, version uint64) *NodeInfo {
+func (node *Node) GetMasterWithVersion(groupIdx int32, version *uint64) *NodeInfo {
 	if !node.CheckGroupId(groupIdx) {
 		return &NodeInfo{NodeId: NULL_NODEID}
 	}
 
-	nodeInfo := NewNodeInfoWithId(node.MasterList[int(groupIdx)].GetMasterSM().GetMasterWithVersion(&version))
+	nodeInfo := NewNodeInfoWithId(
+		node.MasterList[int(groupIdx)].GetMasterSM().GetMasterWithVersion(version))
 
 	return nodeInfo
 

@@ -25,7 +25,7 @@ func NewKvPaxos(myNode gphxpaxos.NodeInfo, nodeList gphxpaxos.NodeInfoList,
 		paxosLogPath: paxosLogPath,
 		dbPath:       dbPath,
 		kvSM:         newKVSM(dbPath),
-		groupCount:   3,
+		groupCount:   1,
 	}
 }
 
@@ -65,12 +65,19 @@ func (p *KVPaxos) RunPaxos() error {
 	for groupIdx := 0; groupIdx < p.groupCount; groupIdx ++ {
 		groupSMInfo := &gphxpaxos.GroupSMInfo{}
 		groupSMInfo.GroupIdx = int32(groupIdx)
+		groupSMInfo.IsUseMaster = true
 		groupSMInfo.SMList = append(groupSMInfo.SMList, p.kvSM)
+
 		options.GroupSMInfoList = append(options.GroupSMInfoList, groupSMInfo)
 	}
 
 	p.paxosNode = &gphxpaxos.Node{}
+
 	err = p.paxosNode.RunNode(options)
+	for groupIdx := 0; groupIdx < p.groupCount; groupIdx ++ {
+		p.paxosNode.SetMasterLease(int32(groupIdx), 30000)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -97,11 +104,10 @@ func (p *KVPaxos) KVPropose(key []byte, value []byte, kvSMCtx *KVSMCtx) error {
 	return nil
 }
 
-
 func (p *KVPaxos) Put(key []byte, value []byte, version uint64) error {
 	data := p.kvSM.MakeSetOpValue(key, value, version)
 	kvSMCtx := NewKVSMCtx()
-	err :=p.KVPropose(key, data, kvSMCtx)
+	err := p.KVPropose(key, data, kvSMCtx)
 	if err != nil {
 		return KVStatus_FAIL
 	}
@@ -114,8 +120,8 @@ func (p *KVPaxos) Put(key []byte, value []byte, version uint64) error {
 	return KVStatus_FAIL
 }
 
-func (p *KVPaxos) GetLocal(key []byte) ([]byte, uint64,  error) {
-	value ,version, err := p.kvSM.GetDBClient().Get(key)
+func (p *KVPaxos) GetLocal(key []byte) ([]byte, uint64, error) {
+	value, version, err := p.kvSM.GetDBClient().Get(key)
 	if err == KV_OK {
 		return value, version, KVStatus_SUCC
 	} else if err == KV_KEY_NOTEXIST {
@@ -128,7 +134,7 @@ func (p *KVPaxos) GetLocal(key []byte) ([]byte, uint64,  error) {
 func (p *KVPaxos) Delete(key []byte, version uint64) error {
 	data := p.kvSM.MakeDelOpValue(key, version)
 	kvSMCtx := NewKVSMCtx()
-	err :=p.KVPropose(key, data, kvSMCtx)
+	err := p.KVPropose(key, data, kvSMCtx)
 	if err != nil {
 		return KVStatus_FAIL
 	}
@@ -140,7 +146,3 @@ func (p *KVPaxos) Delete(key []byte, version uint64) error {
 	}
 	return KVStatus_FAIL
 }
-
-
-
-

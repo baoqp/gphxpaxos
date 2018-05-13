@@ -52,7 +52,7 @@ func (e *Election) GetMaster() *gphxpaxos.NodeInfo {
 }
 
 
-func (e *Election) GetMasterWithVersion(version uint64) *gphxpaxos.NodeInfo {
+func (e *Election) GetMasterWithVersion(version *uint64) *gphxpaxos.NodeInfo {
 	return e.paxosNode.GetMasterWithVersion(0, version)
 }
 

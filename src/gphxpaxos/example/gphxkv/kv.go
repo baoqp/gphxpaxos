@@ -119,7 +119,6 @@ func (c *LevelDBClient) Set(key []byte, value []byte, version uint64) error {
 		return KV_SYS_FAIL
 	}
 
-	// TODO ???
 	if serverVersion != version {
 		return KV_KEY_VERSION_CONFLICT
 	}

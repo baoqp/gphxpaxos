@@ -23,15 +23,6 @@ func NewDefaultNetWork(ip string, port int) *DefaultNetWork {
 }
 
 func (dfNetWork *DefaultNetWork) Init() error {
-	return nil
-}
-
-func (dfNetWork *DefaultNetWork) SetNode(node *Node) {
-	dfNetWork.node = node
-}
-
-// start listening
-func (dfNetWork *DefaultNetWork) RunNetWork() error {
 
 	listener, err := net.ListenTCP("tcp", &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: dfNetWork.port, Zone: ""})
 
@@ -42,6 +33,16 @@ func (dfNetWork *DefaultNetWork) RunNetWork() error {
 
 	log.Infof("start accept tcp request on port %d", dfNetWork.port)
 	go dfNetWork.serve(listener)
+
+	return nil
+}
+
+func (dfNetWork *DefaultNetWork) SetNode(node *Node) {
+	dfNetWork.node = node
+}
+
+// start listening
+func (dfNetWork *DefaultNetWork) RunNetWork() error {
 
 	return nil
 }

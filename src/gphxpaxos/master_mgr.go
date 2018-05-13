@@ -3,7 +3,6 @@ package gphxpaxos
 import (
 	"gphxpaxos/util"
 	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 type MasterMgr struct {
@@ -16,6 +15,7 @@ type MasterMgr struct {
 	paxosNode       *Node
 	defaultMasterSM *MasterStateMachine
 }
+var proposeTime = 1
 
 func NewMasterMgr(paxosNode *Node, groupId int32, logStorage LogStorage,
 	callback MasterChangeCallback) *MasterMgr {
@@ -45,7 +45,6 @@ func (mgr *MasterMgr) DropMaster() {
 func (mgr *MasterMgr) StopMaster() {
 	if mgr.isStarted {
 		mgr.isEnd = true
-		// TODO how to stop
 	}
 }
 
@@ -66,8 +65,7 @@ func (mgr *MasterMgr) main() {
 
 		mgr.TryBeMaster(leaseTime)
 
-		continueLeaseTimeout := (leaseTime - 100 ) / 4
-		continueLeaseTimeout = continueLeaseTimeout/2 + util.Rand(continueLeaseTimeout) // TODO ???
+		continueLeaseTimeout := (leaseTime - 100 ) * 4 / 5
 
 		if mgr.needDropMaster {
 			mgr.needDropMaster = false
@@ -88,8 +86,7 @@ func (mgr *MasterMgr) main() {
 			needSleepTime = uint64(continueLeaseTimeout) - runTime
 		}
 
-		log.Infof("TryBeMaster, sleep time %dms", needSleepTime)
-		time.Sleep(time.Duration(needSleepTime) * time.Millisecond)
+		util.SleepMs(needSleepTime)
 	}
 }
 
@@ -119,8 +116,8 @@ func (mgr *MasterMgr) TryBeMaster(leaseTime int) {
 	commitInstanceId := uint64(0)
 
 	ctx := &SMCtx{SMID: MASTER_V_SMID, PCtx: absMasterTimeout}
-
 	mgr.paxosNode.ProposeWithCtx(mgr.myGroupId, value, &commitInstanceId, ctx)
+	proposeTime ++
 }
 
 func (mgr *MasterMgr) GetMasterSM() *MasterStateMachine {

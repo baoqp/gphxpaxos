@@ -42,8 +42,8 @@ func election1() {
 	} else {
 		for {
 			util.SleepMs(1000)
-			version := uint64(0)
-			masterNode := election.GetMasterWithVersion(version)
+			var version uint64
+			masterNode := election.GetMasterWithVersion(&version)
 			fmt.Printf("master: nodeid %d version %d ip %s port %d\n", masterNode.NodeId,
 				version, masterNode.Ip, masterNode.Port)
 		}
@@ -66,8 +66,8 @@ func election2() {
 	} else {
 		for {
 			util.SleepMs(1000)
-			version := uint64(0)
-			masterNode := election.GetMasterWithVersion(version)
+			var version uint64
+			masterNode := election.GetMasterWithVersion(&version)
 			fmt.Printf("master: nodeid %d version %d ip %s port %d\n", masterNode.NodeId,
 				version, masterNode.Ip, masterNode.Port)
 		}
@@ -90,8 +90,8 @@ func election3() {
 	} else {
 		for {
 			util.SleepMs(1000)
-			version := uint64(0)
-			masterNode := election.GetMasterWithVersion(version)
+			var version uint64
+			masterNode := election.GetMasterWithVersion(&version)
 			fmt.Printf("master: nodeid %d version %d ip %s port %d\n", masterNode.NodeId,
 				version, masterNode.Ip, masterNode.Port)
 		}

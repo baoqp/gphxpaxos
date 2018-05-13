@@ -63,7 +63,7 @@ func (learnerState *LearnerState) LearnValue(instanceId uint64, learnedBallot Ba
 		learnerState.config.GetMyGroupId(), instanceId, &state)
 
 	if err != nil {
-		log.Errorf("storage writestate fail, instanceid %d valuelen %d err %v",
+		log.Errorf("storage write state fail, instanceId %d value len %d err %v",
 			instanceId, len(value), err)
 		return err
 	}
@@ -193,7 +193,7 @@ func (learner *Learner) AskforLearnNoop() {
 
 //广播AskForLearn消息
 func (learner *Learner) askforLearn() {
-	log.Info("start learn")
+	//log.Info("start learn")
 
 	base := learner.Base
 
@@ -207,7 +207,7 @@ func (learner *Learner) askforLearn() {
 		msg.ProposalNodeID = proto.Uint64(learner.config.GetFollowToNodeID())
 	}
 
-	log.Infof("end instanceid %d, mynodeid %d", msg.GetInstanceID(), msg.GetNodeID())
+	//log.Infof("end instanceid %d, mynodeid %d", msg.GetInstanceID(), msg.GetNodeID())
 
 	base.broadcastMessage(msg, BroadcastMessage_Type_RunSelf_None, Default_SendType)
 
@@ -215,13 +215,13 @@ func (learner *Learner) askforLearn() {
 }
 
 func (learner *Learner) OnAskforLearn(msg *PaxosMsg) {
-	log.Infof("start msg.instanceid %d now.instanceid %d msg.fromnodeid %d",
-		msg.GetInstanceID(), learner.GetInstanceId(), msg.GetNodeID())
+	//log.Infof("start msg.instanceid %d now.instanceid %d msg.fromnodeid %d",
+	//	msg.GetInstanceID(), learner.GetInstanceId(), msg.GetNodeID())
 
 	learner.SetSeenInstanceID(msg.GetInstanceID(), msg.GetNodeID())
 
 	if msg.GetProposalNodeID() == learner.config.GetMyNodeId() {
-		log.Infof("found a node %d follow me", msg.GetNodeID())
+		//log.Infof("found a node %d follow me", msg.GetNodeID())
 		learner.config.AddFollowerNode(msg.GetNodeID())
 	}
 
@@ -235,7 +235,7 @@ func (learner *Learner) OnAskforLearn(msg *PaxosMsg) {
 			log.Errorf("learner sender working for others")
 
 			if msg.GetInstanceID() == learner.GetInstanceId()-1 {
-				log.Info("instanceid only difference one, just send this value to other")
+				//log.Info("instanceid only difference one, just send this value to other")
 				var state = &AcceptorStateData{}
 				err := learner.paxosLog.ReadState(learner.config.GetMyGroupId(), msg.GetInstanceID(), state)
 				if err == nil {
@@ -283,15 +283,15 @@ func (learner *Learner) OnSendNowInstanceId(msg *PaxosMsg) {
 	instance := learner.instance
 	instanceId := learner.instanceId
 
-	log.Infof("[%s]start msg.instanceid %d now.instanceid %d msg.from_nodeid %d msg.maxinstanceid %d",
-		instance.String(), msg.GetInstanceID(), learner.instanceId, msg.GetNodeID(), msg.GetNowInstanceID())
+	//log.Infof("[%s]start msg.instanceid %d now.instanceid %d msg.from_nodeid %d msg.maxinstanceid %d",
+	//	instance.String(), msg.GetInstanceID(), learner.instanceId, msg.GetNodeID(), msg.GetNowInstanceID())
 
 	learner.SetSeenInstanceID(msg.GetNowInstanceID(), msg.GetNodeID())
 
 	// TODO 不同的错误需要分开
 	systemVariablesChange, err := learner.config.GetSystemVSM().UpdateByCheckpoint(msg.SystemVariables)
 	if systemVariablesChange && err == nil {
-		log.Info("systemVariables changed!, all thing need to reflesh, so skip this msg")
+		//log.Info("systemVariables changed!, all thing need to reflesh, so skip this msg")
 		return
 	}
 
@@ -299,7 +299,7 @@ func (learner *Learner) OnSendNowInstanceId(msg *PaxosMsg) {
 		var masterVariablesChange bool
 		err := masterSM.UpdateByCheckpoint(msg.MasterVariables, &masterVariablesChange)
 		if masterVariablesChange && err == nil {
-			log.Info("systemVariables changed!, all thing need to reflesh, so skip this msg")
+			//log.Info("systemVariables changed!, all thing need to reflesh, so skip this msg")
 			return
 		}
 	}
@@ -319,8 +319,8 @@ func (learner *Learner) OnSendNowInstanceId(msg *PaxosMsg) {
 
 	// 需要发送快照
 	if msg.GetMinChosenInstanceID() > instanceId {
-		log.Infof("my instanceid %d small than other's minChosenInstanceId %d, other nodeid %d",
-			learner.instanceId, msg.GetMinChosenInstanceID(), msg.GetNodeID())
+		//log.Infof("my instanceid %d small than other's minChosenInstanceId %d, other nodeid %d",
+		//	learner.instanceId, msg.GetMinChosenInstanceID(), msg.GetNodeID())
 
 		learner.AskforCheckpoint(msg.GetNodeID())
 	} else if !learner.isImLearning { // 不在学习状态
@@ -340,14 +340,14 @@ func (learner *Learner) confirmAskForLearn(sendNodeId uint64) {
 }
 
 func (learner *Learner) OnConfirmAskForLearn(msg *PaxosMsg) {
-	log.Infof("start msg.instanceid %d msg.from nodeid %d", msg.GetInstanceID(), msg.GetNodeID())
+	//log.Infof("start msg.instanceid %d msg.from nodeid %d", msg.GetInstanceID(), msg.GetNodeID())
 
 	if !learner.sender.Confirm(msg.GetInstanceID(), msg.GetNodeID()) {
 		log.Errorf("learner sender confirm fail, maybe is lag msg")
 		return
 	}
 
-	log.Info("ok, success confirm")
+	//log.Info("ok, success confirm")
 }
 
 func (learner *Learner) SendLearnValue(sendNodeId uint64, learnInstanceId uint64,
@@ -371,10 +371,10 @@ func (learner *Learner) SendLearnValue(sendNodeId uint64, learnInstanceId uint64
 
 // 接收到被学习者所发来的消息
 func (learner *Learner) OnSendLearnValue(msg *PaxosMsg) {
-	log.Infof("START Msg.InstanceID %d Now.InstanceID %d Msg.ballot_proposalid %d "+
-		"Msg.ballot_nodeid %d Msg.ValueSize %d",
-		msg.GetInstanceID(), learner.GetInstanceId(), msg.GetProposalID(),
-		msg.GetNodeID(), len(msg.Value))
+	//log.Infof("START Msg.InstanceID %d Now.InstanceID %d Msg.ballot_proposalid %d "+
+	//	"Msg.ballot_nodeid %d Msg.ValueSize %d",
+	//	msg.GetInstanceID(), learner.GetInstanceId(), msg.GetProposalID(),
+	//	msg.GetNodeID(), len(msg.Value))
 
 	if msg.GetInstanceID() > learner.GetInstanceId() {
 		log.Debug("[Latest Msg] i can't learn")
@@ -392,8 +392,8 @@ func (learner *Learner) OnSendLearnValue(msg *PaxosMsg) {
 			log.Errorf("LearnState.LearnValue fail:%v", err)
 			return
 		}
-		log.Infof("END LearnValue OK, proposalid %d proposalid_nodeid %d valueLen %d",
-			msg.GetProposalID(), msg.GetNodeID(), len(msg.Value))
+		//log.Infof("END LearnValue OK, proposalid %d proposalid_nodeid %d valueLen %d",
+		//	msg.GetProposalID(), msg.GetNodeID(), len(msg.Value))
 	}
 
 	if msg.GetFlag() == PaxosMsgFlagType_SendLearnValue_NeedAck {
@@ -407,11 +407,11 @@ func (learner *Learner) OnSendLearnValue(msg *PaxosMsg) {
 // 并不是每学习一个value, 就发送ack，而是学习了ack_lead个value之后才发送ack,这样可以减少网络请求
 func (learner *Learner) SendLearnValueAck(sendNodeId uint64) {
 
-	log.Infof("SendLearnValueAck START LastAck.Instanceid %d Now.Instanceid %d",
-		learner.lastAckInstanceId, learner.GetInstanceId())
+	//log.Infof("SendLearnValueAck START LastAck.Instanceid %d Now.Instanceid %d",
+	//	learner.lastAckInstanceId, learner.GetInstanceId())
 
 	if learner.GetInstanceId() < learner.lastAckInstanceId+uint64(GetLearnerReceiverAckLead()) {
-		log.Info("no need ack")
+		//log.Info("no need ack")
 		return
 	}
 
@@ -425,12 +425,12 @@ func (learner *Learner) SendLearnValueAck(sendNodeId uint64) {
 
 	learner.sendPaxosMessage(sendNodeId, msg, Default_SendType)
 
-	log.Info("END.OK")
+	//log.Info("END.OK")
 }
 
 // 接收到ack信息，更新sender信息
 func (learner *Learner) OnSendLearnValueAck(msg *PaxosMsg) {
-	log.Info("Msg.Ack.Instanceid %d Msg.from_nodeid %d", msg.GetInstanceID(), msg.GetNodeID())
+	//log.Info("Msg.Ack.InstanceId %d Msg.fromNodeId %d", msg.GetInstanceID(), msg.GetNodeID())
 	learner.sender.Ack(msg.GetInstanceID(), msg.GetNodeID())
 }
 
@@ -458,7 +458,7 @@ func (learner *Learner) TransmitToFollower() { // TODO
 
 	learner.BroadcastMessageToFollower(msg, Default_SendType)
 
-	log.Info("OK")
+	//log.Info("OK")
 }
 
 // TODO   proposer accept被多数接受调用该方法
@@ -477,16 +477,16 @@ func (learner *Learner) ProposerSendSuccess(instanceId uint64, proposalId uint64
 
 func (learner *Learner) OnProposerSendSuccess(msg *PaxosMsg) {
 
-	log.Infof("[%s]OnProposerSendSuccess Msg.InstanceID %d Now.InstanceID %d Msg.ProposalID %d "+
-		"State.AcceptedID %d State.AcceptedNodeID %d, Msg.from_nodeid %d",
-		learner.instance.String(), msg.GetInstanceID(), learner.GetInstanceId(), msg.GetProposalID(),
-		learner.acceptor.GetAcceptorState().acceptedNum.proposalId,
-		learner.acceptor.GetAcceptorState().acceptedNum.nodeId,
-		msg.GetNodeID())
+	//log.Infof("[%s]OnProposerSendSuccess Msg.InstanceID %d Now.InstanceID %d Msg.ProposalID %d "+
+	//	"State.AcceptedID %d State.AcceptedNodeID %d, Msg.from_nodeid %d",
+	//	learner.instance.String(), msg.GetInstanceID(), learner.GetInstanceId(), msg.GetProposalID(),
+	//	learner.acceptor.GetAcceptorState().acceptedNum.proposalId,
+	//	learner.acceptor.GetAcceptorState().acceptedNum.nodeId,
+	//	msg.GetNodeID())
 
 	if msg.GetInstanceID() != learner.GetInstanceId() {
-		log.Debugf("instance id %d not same as msg instance id %d",
-			learner.GetInstanceId(), msg.GetInstanceID())
+	//	log.Debugf("instance id %d not same as msg instance id %d",
+	//		learner.GetInstanceId(), msg.GetInstanceID())
 		return
 	}
 
@@ -507,7 +507,7 @@ func (learner *Learner) OnProposerSendSuccess(msg *PaxosMsg) {
 		learner.acceptor.GetAcceptorState().GetAcceptedValue(),
 		learner.acceptor.GetAcceptorState().GetChecksum())
 
-	log.Info("learn value instanceid %d ok", msg.GetInstanceID())
+	//log.Infof("learn value instanceId %d ok", msg.GetInstanceID())
 	learner.TransmitToFollower()
 }
 
@@ -586,9 +586,9 @@ func (learner *Learner) SendCheckpointEnd(sendNodeId uint64, uuid uint64,
 }
 
 func (learner *Learner) OnSendCheckpoint(ckMsg *CheckpointMsg) {
-	log.Info("start uuid %d flag %d sequence %d cpi %d checksum %d smid %d offset %d filepath %s",
-		ckMsg.GetUUID(), ckMsg.GetFlag(), ckMsg.GetSequence(), ckMsg.GetCheckpointInstanceID(),
-		ckMsg.GetChecksum(), ckMsg.GetSMID(), ckMsg.GetOffset(), ckMsg.GetFilePath())
+	//log.Info("start uuid %d flag %d sequence %d cpi %d checksum %d smid %d offset %d filepath %s",
+	//	ckMsg.GetUUID(), ckMsg.GetFlag(), ckMsg.GetSequence(), ckMsg.GetCheckpointInstanceID(),
+	//	ckMsg.GetChecksum(), ckMsg.GetSMID(), ckMsg.GetOffset(), ckMsg.GetFilePath())
 
 	var err error
 	switch ckMsg.GetFlag() {
@@ -648,7 +648,7 @@ func (learner *Learner) OnSendCheckpointEnd(ckMsg *CheckpointMsg) error {
 		tmpDirPath := learner.ckReceiver.GetTmpDirPath(smid)
 		filePathList, err := util.IterDir(tmpDirPath)
 		if err != nil {
-			log.Errorf("IterDir fail, dirpath %s", tmpDirPath)
+			log.Errorf("Iter Dir fail, dirPath %s", tmpDirPath)
 		}
 
 		if filePathList == nil || len(filePathList) == 0 {
@@ -682,7 +682,7 @@ func (learner *Learner) SendCheckpointAck(sendNodeId uint64, uuid uint64, sequen
 }
 
 func (learner *Learner) OnSendCheckpointAck(ckMsg *CheckpointMsg) {
-	log.Info("START flag %d", ckMsg.GetFlag())
+	//log.Info("START flag %d", ckMsg.GetFlag())
 
 	if learner.ckSender != nil && !learner.ckSender.IsEnd() {
 		if ckMsg.GetFlag() == CheckpointSendFileAckFlag_OK {

@@ -40,7 +40,6 @@ func (s *KVServer) Init() error {
 	RegisterPhxKVServerServer(grpcServer, s)
 	// Register reflection service on gRPC server.
 	reflection.Register(grpcServer)
-	log.Infof("--start listen on %d---", grpcPort)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 		return err
@@ -59,7 +58,7 @@ func (s *KVServer) Put(ctx context.Context, request *KVOperator) (
 		reply.MasterNodeid = s.kvPaxos.GetMaster(request.GetKey()).NodeId
 		err = nil
 
-		log.Infof(" I'm not master, need redirect, master nodeid i saw %d, key %s version %d",
+		log.Infof(" I'm not master, need redirect, master nodeId i saw %d, key %s version %d",
 			reply.MasterNodeid, string(request.GetKey()), request.GetVersion())
 
 		return

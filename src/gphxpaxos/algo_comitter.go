@@ -61,8 +61,11 @@ func (commitContext *CommitContext) isNewCommit() bool {
 
 func (commitContext *CommitContext) StartCommit(instanceId uint64) uint32 {
 	commitContext.mutex.Lock()
+	defer commitContext.mutex.Unlock()
+
 	commitContext.instanceId = instanceId
-	commitContext.mutex.Unlock()
+
+	log.Infof("-----StartCommit, instanceId %d", instanceId)
 
 	return commitContext.timeoutMs
 }
@@ -103,6 +106,9 @@ func (commitContext *CommitContext) setResultOnlyRet(commitret error) {
 func (commitContext *CommitContext) setResult(commitret error, instanceId uint64, learnValue []byte) {
 	commitContext.mutex.Lock()
 	defer commitContext.mutex.Unlock()
+
+
+	log.Infof("-----setResult, instanceId %d", instanceId)
 
 	if commitContext.commitEnd || commitContext.instanceId != instanceId {
 		log.Errorf("[%s]set result error, commitContext instance id %d,msg instance id %d",
@@ -182,9 +188,9 @@ func (committer *Committer) NewValue(value []byte) (uint64, error) {
 
 func (committer *Committer) NewValueGetID(value []byte, context *SMCtx) (uint64, error) {
 	err := PaxosTryCommitRet_OK
-	var instanceid uint64
+	var instanceId uint64
 	for i := 0; i < MaxTryCount; i++ {
-		instanceid, err = committer.newValueGetIDNoRetry(value, context)
+		instanceId, err = committer.newValueGetIDNoRetry(value, context)
 		if err != PaxosTryCommitRet_Conflict && err != PaxosTryCommitRet_WaitTimeout &&
 			err != PaxosTryCommitRet_TooManyThreadWaiting_Reject { // 可以重试的错误
 			break
@@ -195,7 +201,7 @@ func (committer *Committer) NewValueGetID(value []byte, context *SMCtx) (uint64,
 		}
 	}
 
-	return instanceid, err
+	return instanceId, err
 }
 
 func (committer *Committer) newValueGetIDNoRetry(value []byte, context *SMCtx) (uint64, error) {

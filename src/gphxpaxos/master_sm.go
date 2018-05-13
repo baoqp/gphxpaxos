@@ -155,12 +155,12 @@ func (masterSM *MasterStateMachine) LearnMaster(instanceId uint64, operator *Mas
 		// self be master
 		// use local abstimeout
 		masterSM.absExpireTime = absMasterTimeout
-		log.Infof("Be master success, absexpiretime %d", masterSM.absExpireTime)
+		log.Infof("Be master success, absExpireTime %d", masterSM.absExpireTime)
 	} else {
 		// other be master
 		// use new start timeout
 		masterSM.absExpireTime = util.NowTimeMs() + uint64(operator.GetTimeout())
-		log.Infof("Other be master, absexpiretime %d", masterSM.absExpireTime)
+		log.Infof("Other be master, absExpireTime %d", masterSM.absExpireTime)
 	}
 
 	masterSM.leaseTime = int(operator.GetTimeout())
@@ -173,8 +173,8 @@ func (masterSM *MasterStateMachine) LearnMaster(instanceId uint64, operator *Mas
 		}
 	}
 
-	log.Infof("OK, masternodeid %d version %d abstimeout %d",
-		masterSM.masterNodeId, masterSM.masterVersion, masterSM.absExpireTime)
+	log.Infof("OK, masternodeid %d version %d abstimeout %d nowTime %d",
+		masterSM.masterNodeId, masterSM.masterVersion, masterSM.absExpireTime, util.NowTimeMs())
 
 	return nil
 }
@@ -194,6 +194,8 @@ func (masterSM *MasterStateMachine) SafeGetMaster(masterNodeId *uint64, masterVe
 
 func (masterSM *MasterStateMachine) GetMaster() uint64 {
 	if util.NowTimeMs() >= masterSM.absExpireTime {
+		log.Infof("-----------GetMaster expire--, expireTime %d, nowTime %d",
+			masterSM.absExpireTime, util.NowTimeMs())
 		return NULL_NODEID
 	}
 
@@ -223,18 +225,16 @@ func (masterSM *MasterStateMachine) Execute(groupIdx int32, instanceId uint64, v
 	var operator = &MasterOperator{}
 	err := proto.Unmarshal(value, operator)
 	if err != nil {
-		log.Errorf("oMasterOper data wrong %v", err)
+		log.Errorf("Master Operator data wrong %v", err)
 		return err
 	}
 
 	if operator.GetOperator() == MasterOperatorType_Complete {
+
 		var absMasterTimeout uint64 = 0
 		if ctx != nil && ctx.PCtx != nil {
 			absMasterTimeout = ctx.PCtx.(uint64)
 		}
-
-
-		log.Infof("abs master timeout %v", absMasterTimeout)
 
 		err = masterSM.LearnMaster(instanceId, operator, absMasterTimeout)
 		if err != nil {

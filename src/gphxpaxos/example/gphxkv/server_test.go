@@ -25,11 +25,35 @@ func  MakeLogStoragePath(ip string, port int ) string {
 	return path
 }
 
-func TestKVServer(t *testing.T) {
+
+func RunServer1() {
 	myNode, nodeList := parseNode("127.0.0.1:11111 127.0.0.1:11111,127.0.0.1:11112,127.0.0.1:11113")
 	serverStorePath := MakeLogStoragePath(myNode.Ip, myNode.Port)
 	kvServer := NewKVServer(myNode,nodeList, serverStorePath + "/db",  serverStorePath + "/log")
-	go kvServer.Init()
+	kvServer.Init()
+}
+
+
+func RunServer2() {
+	myNode, nodeList := parseNode("127.0.0.1:11112 127.0.0.1:11111,127.0.0.1:11112,127.0.0.1:11113")
+	serverStorePath := MakeLogStoragePath(myNode.Ip, myNode.Port)
+	kvServer := NewKVServer(myNode,nodeList, serverStorePath + "/db",  serverStorePath + "/log")
+	kvServer.Init()
+}
+
+func RunServer3() {
+	myNode, nodeList := parseNode("127.0.0.1:11113 127.0.0.1:11111,127.0.0.1:11112,127.0.0.1:11113")
+	serverStorePath := MakeLogStoragePath(myNode.Ip, myNode.Port)
+	kvServer := NewKVServer(myNode,nodeList, serverStorePath + "/db",  serverStorePath + "/log")
+	kvServer.Init()
+}
+
+func TestKVServer(t *testing.T) {
+	go RunServer1()
+	go RunServer2()
+	go RunServer3()
+
+	select{}
 }
 
 
